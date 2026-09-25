@@ -1,0 +1,85 @@
+Sanity: Psychological Devastation - standalone mod NOTICE
+=======================================================
+
+This mod's mechanics are derived from the following open-source project:
+
+    Original: Sanity: Descent Into Madness
+    Author:   croissantnova
+    Source:   https://github.com/croissantnova/SanityDescentIntoMadness (branch mc1.20)
+    License:  MIT License, Copyright (c) 2023 croissantnova
+
+The full text of the original license is in the LICENSE file next to this notice.
+This modified version is likewise released under the MIT License; the original
+author's copyright and license notices are preserved in full.
+
+--------------------------------------------------------------------------------
+Summary of changes relative to the original
+--------------------------------------------------------------------------------
+
+CORE SYSTEM
+ 1. Sanity is point-based: players cap at 100, other mobs cap at their max health.
+    Config units and semantics are unchanged; older saves migrate automatically.
+ 2. Fixed 8 upstream defects: the pet-death penalty was dead code and never applied;
+    block cooldowns were saved into the wrong table; chunk "player placed block"
+    tracking lost two thirds of its entries; the inner-entity capability packet was
+    resent every tick (network storm) and target switches were not synchronised;
+    the refresh timer was keyed by instance (leak plus lost state); a spawn-height
+    sentinel value; the garland timer was shared globally; and one English command
+    argument order was reversed.
+
+DAMAGE AND STATES
+ 3. New damage types: sanitypd:psychic, sanitypd:true_damage (attributed and
+    unattributed), sanitypd:mania, sanitypd:psychic_overflow, sanitypd:crawler_explosion.
+ 4. All mobs have sanity except inner entities (tag sanitypd:inner_entities), which
+    are immune to confusion and mania and convert psychic damage into 2.5x true damage.
+    Each inner entity also has its own psychic resistance (stalker 10 / crawler 20 /
+    terror 15 points), editable at runtime.
+ 5. New confusion and mania status effects, including their state machine, the mania
+    grace period and its true damage, and two immunity effects (one of which also
+    stops inner entities from attacking and stops the crawler from detonating).
+
+ITEMS AND ENCHANTMENTS
+ 6. New enchantments: psychic_deprivation, psychic_drain, psychic_protection.
+ 7. New items: three mood stabilizers (alpha / beta / gamma), three inner materials
+    (shard / clump / core), the inner-entity spawn eggs (with a dedicated creative
+    tab), and a flower garland.
+ 8. Anvil refinement: a shadow weapon combined with inner clumps gains levels
+    (one clump = one level = one experience), capped at 100 and by the vanilla
+    anvil limit per operation.
+ 9. Off-hand shield takes priority over shadow-weapon charging when both are held.
+
+ENTITIES AND AI
+10. Three inner entities with GeckoLib models, animations, textures and self-emissive
+    eye layers; individual sounds for ambient, roar, hurt and death.
+11. Reworked screaming-crawler tracking and pathing: A* global routing, self-driven
+    movement, jumping and step-up, stuck detection, and two sanity gates (its blast
+    stops breaking blocks above 50% sanity; it refuses to track a player above 75%).
+12. Full blackout reskins with glowing eyes for the passive animals.
+
+PRESENTATION
+13. Sanity indicator with configurable position and scale, sanity value shown while
+    sneaking, three configurable inner-monologue pools plus a separate expiry-warning
+    pool, an immediate-hint preview command, mania edge and pulse overlays, blood
+    tendril overlays, two post-processing shaders, and a heartbeat sound layer.
+14. Simplified Chinese language file throughout (items, effects, tooltips, subtitles,
+    command feedback) with translated config comments; both languages ship the same
+    key set.
+15. Optional Jade integration: shows "Sanity: current/max" under the health bar.
+
+COMMANDS
+16. New commands: /sanity get | state | psychic | truedamage | set | add |
+    config reload | innerspawn | hint <tier> add|remove|list|clear|show |
+    hint expiry ... | resist set|add|subtract|clear|get.
+17. The title-screen splash pool gains a small set of extra lines; the vanilla lines
+    are all kept.
+
+--------------------------------------------------------------------------------
+Original project credits (preserved)
+--------------------------------------------------------------------------------
+Art / audio collaboration: toujourspareil, Zapsplat (see the credits field in mods.toml)
+
+--------------------------------------------------------------------------------
+Development disclosure
+--------------------------------------------------------------------------------
+Parts of this mod were developed with AI assistance (DeepSeek Harness, "dsh").
+All design decisions, in-game testing and final review were done by the author.

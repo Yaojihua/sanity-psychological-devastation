@@ -1,0 +1,11 @@
+{
+	"replace": false,
+	"values": [
+		"sanitypd:psychic",
+		"sanitypd:true_damage",
+		"sanitypd:true_damage_attributed",
+		"sanitypd:psychic_overflow",
+		"sanitypd:crawler_explosion",
+		"sanitypd:mania"
+	]
+}

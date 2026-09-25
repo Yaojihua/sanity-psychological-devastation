@@ -1,0 +1,49 @@
+modLoader="javafml"
+loaderVersion="[46,)"
+license="MIT"
+
+[[mods]]
+modId="sanityprobe"
+version="${file.jarVersion}"
+displayName="SanityPD Probe (Mind Probe)"
+# Mod logo shown in the mod list (file at the root of the jar).
+logoFile="sanityprobe512.png"
+description='''
+SanityPD Probe (Chinese name: 思维探针 / "Mind Probe") - a diagnostic mod, not a gameplay mod.
+It writes to logs/sanityprobe.log and draws a few values on screen, and it does not change any
+gameplay behaviour. It captures the call stack of death-message broadcasts, the crawler's AI/walk
+state and the client-side walk animation decision.
+Delete this jar when the diagnostics are done; it does not affect any save.
+SANITYPD 思维探针 —— 诊断模组（非玩法模组）：只往 logs/sanityprobe.log 写日志、在屏幕上显示几个数字，
+不改变任何游戏行为。用途：抓死亡标语广播的调用栈、爬者的 AI/走路状态、客户端走路动画判定。
+诊断结束后直接把本 jar 删掉即可，不影响任何存档。
+'''
+
+# Pure diagnostic mod: do not show a red X when client and server versions differ.
+displayTest="IGNORE_ALL_VERSION"
+
+[[dependencies.sanityprobe]]
+    modId="sanitypd"
+    mandatory=true
+    # Any 1.1.x build is accepted; the probe reflects over its internals, so a major bump needs a recheck.
+    versionRange="[1.1,2.0)"
+    # "AFTER" makes FML load sanitypd first (the reflective lookups in the probe expect it to be present)
+    # and, because the dependency is mandatory, a missing sanitypd is reported the same way as any other
+    # required dependency: "Missing or unsupported mandatory dependencies", and the game refuses to start
+    # instead of running with a silently incomplete diagnostic overlay.
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.sanityprobe]]
+    modId="forge"
+    mandatory=true
+    versionRange="[46,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.sanityprobe]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20,1.21)"
+    ordering="NONE"
+    side="BOTH"

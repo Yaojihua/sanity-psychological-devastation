@@ -1,0 +1,15 @@
+{
+  "minVersion": "0.7.11",
+  "compatibilityLevel": "JAVA_17",
+  "package": "piloser.sanityprobe.mixin",
+  "refmap": "sanityprobe.refmap.json",
+  "mixins": [
+    "MixinMinecraftServer",
+    "MixinPathNavigation",
+    "MixinMoveControl",
+    "MixinServerPlayer",
+    "MobAccessor"
+  ],
+  "client": [],
+  "server": []
+}

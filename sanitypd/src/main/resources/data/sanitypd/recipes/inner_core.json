@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "rga",
+    "gcg",
+    "agr"
+  ],
+  "key": {
+    "r": {
+      "item": "minecraft:redstone"
+    },
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "a": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "c": {
+      "item": "sanitypd:inner_clump"
+    }
+  },
+  "result": {
+    "item": "sanitypd:inner_core",
+    "count": 1
+  }
+}

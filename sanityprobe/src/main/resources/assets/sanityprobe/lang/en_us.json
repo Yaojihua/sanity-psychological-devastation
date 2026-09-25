@@ -1,0 +1,6 @@
+{
+	"key.categories.sanityprobe": "SanityPD Probe",
+	"key.sanityprobe.toggle_hud": "Toggle probe overlay (F4)",
+	"msg.sanityprobe.hud.on": "[probe] overlay shown",
+	"msg.sanityprobe.hud.off": "[probe] overlay hidden (F4 to show again)"
+}

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "xx",
+    "xx"
+  ],
+  "key": {
+    "x": {
+      "item": "sanitypd:inner_shard"
+    }
+  },
+  "result": {
+    "item": "sanitypd:inner_clump",
+    "count": 1
+  }
+}

@@ -1,0 +1,101 @@
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '[6.0,6.2)', changing: true
+        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
+    }
+}
+
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'org.spongepowered.mixin' version '0.7.+'
+}
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'org.spongepowered.mixin'
+
+version = mod_version
+group = "${developer}.${mod_id}"
+base {
+    archivesName = "${archives_base_name}-${mc_display_version}"
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+minecraft {
+    mappings channel: "${mappings_channel}", version: "${mappings_version}"
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                sanityprobe {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                sanityprobe {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, project.mod_id + '.refmap.json'
+    config project.mod_id + '.mixins.json'
+}
+
+repositories {
+    // GeckoLib maven: the probe needs the GeckoLib artifact remapped to dev (official) names so that
+    // sanitypd - which requires geckolib - can be loaded in the probe's dev client.
+    maven { url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    // The probe itself uses no GeckoLib code. It is declared here only so that sanitypd can be loaded
+    // alongside it in the development client (sanitypd's mods.toml mandates geckolib).
+    // Do NOT drop the release GeckoLib jar into run/mods: that artifact uses SRG names while the dev
+    // environment uses official names, which fails at load time inside mixin application.
+    // fg.deobf lets ForgeGradle remap it to dev names and put it on the classpath, so run/mods only
+    // needs a non-reobf development build of sanitypd.
+    // Keep this version in sync with sanitypd's geckolib_version (currently 4.2).
+    implementation fg.deobf("software.bernie.geckolib:geckolib-forge-1.20:4.2")
+}
+
+jar {
+    manifest {
+        attributes([
+                "Specification-Title"     : "${mod_id}",
+                "Specification-Vendor"    : "${developer}",
+                "Specification-Version"   : "${spec_version}",
+                "Implementation-Title"    : project.name,
+                "Implementation-Version"  : "${mod_version}",
+                "Implementation-Vendor"   : "${developer}",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}
+
+jar.finalizedBy('reobfJar')
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

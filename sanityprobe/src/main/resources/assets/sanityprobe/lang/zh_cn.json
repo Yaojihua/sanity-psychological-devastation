@@ -1,0 +1,6 @@
+{
+	"key.categories.sanityprobe": "SanityPD 探针",
+	"key.sanityprobe.toggle_hud": "显示/隐藏探针字幕 (F4)",
+	"msg.sanityprobe.hud.on": "[probe] 探针字幕：显示",
+	"msg.sanityprobe.hud.off": "[probe] 探针字幕：隐藏（按 F4 再显示）"
+}
