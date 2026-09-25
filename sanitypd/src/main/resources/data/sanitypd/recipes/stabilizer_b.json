@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SIS",
+    "IFI",
+    "SIS"
+  ],
+  "key": {
+    "S": {
+      "item": "minecraft:sugar"
+    },
+    "I": {
+      "item": "sanitypd:inner_shard"
+    },
+    "F": {
+      "item": "minecraft:poppy"
+    }
+  },
+  "result": {
+    "item": "sanitypd:stabilizer_b",
+    "count": 4
+  }
+}

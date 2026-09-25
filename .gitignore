@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# dev run directory (generated; contains machine-specific paths)
+run/
+runs/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.eclipse/
+.settings/
+.classpath
+.project
+bin/
+out/
+
+# logs / crash reports
+logs/
+crash-reports/
+*.log
+
+# OS
+Thumbs.db
+.DS_Store

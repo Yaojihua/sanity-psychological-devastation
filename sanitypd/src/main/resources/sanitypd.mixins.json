@@ -1,0 +1,36 @@
+{
+  "minVersion": "0.7.11",
+  "compatibilityLevel": "JAVA_17",
+  "package": "piloser.sanitypd.mixin",
+  "refmap": "sanitypd.refmap.json",
+  "mixins": [
+    "MixinAnimal",
+    "MixinAnvilMenu",
+    "MixinChicken",
+    "MixinCow",
+    "MixinEnderMan",
+    "MixinEntity",
+    "MixinFlowerPotBlock",
+    "MixinJukeboxBlockEntity",
+    "MixinPig",
+    "MixinServerPlayerGameMode",
+    "MixinShearsItem",
+    "MixinSheep",
+    "MixinTemptGoal",
+    "MixinThrownEgg",
+    "MixinVillager",
+    "MixinZombifiedPiglin"
+  ],
+  "client": [
+    "MixinChickenRenderer",
+    "MixinSplashManager",
+    "MixinWinScreen",
+    "MixinClientLevel",
+    "MixinCowRenderer",
+    "MixinGameRenderer",
+    "MixinPigRenderer",
+    "MixinSheepFurLayer",
+    "MixinSheepRenderer"
+  ],
+  "server": []
+}

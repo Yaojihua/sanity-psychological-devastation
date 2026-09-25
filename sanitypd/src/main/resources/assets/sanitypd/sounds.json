@@ -1,0 +1,62 @@
+{
+	"insanity": {
+		"category": "ambient",
+		"sounds": [
+			"sanitypd:insanity1"
+		]
+	},
+	"heartbeat": {
+		"category": "ambient",
+		"sounds": [
+			"sanitypd:heartbeat"
+		]
+	},
+	"swish": {
+		"category": "ambient",
+		"sounds": [
+			"sanitypd:swish0",
+			"sanitypd:swish1",
+			"sanitypd:swish2",
+			"sanitypd:swish3",
+			"sanitypd:swish4"
+		]
+	},
+	"flowers_equip": {
+		"sounds": [
+			"sanitypd:leaves_rustle"
+		]
+	},
+	"inner_entity_hurt": {
+		"sounds": [
+			"sanitypd:whoosh"
+		],
+		"subtitle": "subtitles.sanitypd.inner_entity_hurt"
+	},
+	"inner_entity_death": {
+		"sounds": [
+			"sanitypd:whoosh"
+		],
+		"subtitle": "subtitles.sanitypd.inner_entity_death"
+	},
+	"screaming_crawler_roar": {
+		"category": "hostile",
+		"sounds": [
+			"sanitypd:screaming_crawler_roar"
+		],
+		"subtitle": "subtitles.sanitypd.screaming_crawler_roar"
+	},
+	"screaming_crawler_ambient": {
+		"category": "hostile",
+		"sounds": [
+			"sanitypd:screaming_crawler_ambient"
+		],
+		"subtitle": "subtitles.sanitypd.screaming_crawler_ambient"
+	},
+	"screaming_crawler_explode": {
+		"category": "block",
+		"sounds": [
+			"sanitypd:screaming_crawler_explode"
+		],
+		"subtitle": "subtitles.sanitypd.screaming_crawler_explode"
+	}
+}

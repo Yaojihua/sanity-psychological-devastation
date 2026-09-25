@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gcr",
+    "cxc",
+    "acg"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "r": {
+      "item": "minecraft:redstone"
+    },
+    "a": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    },
+    "x": {
+      "item": "minecraft:diamond_axe"
+    }
+  },
+  "result": {
+    "item": "sanitypd:shadow_axe",
+    "count": 1
+  }
+}
