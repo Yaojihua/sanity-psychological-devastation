@@ -190,8 +190,8 @@ alpha 标注的含义就是这个。
 
 ## 发布前勾选清单
 
-- [ ] Release type 选 **Alpha**
-- [ ] 上传的文件：`sanitypd-mc1.20-1.1.0.jar`
+- [ ] Release type 选 **Beta**（**不要选 Alpha**：Alpha 文件不会同步到 CurseForge App，玩家在 App 里搜不到）
+- [ ] 上传的文件：`sanitypd-mc1.20-1.1.1.jar`
 - [ ] 依赖里写明 **GeckoLib（必装，需与 Forge 版本搭配）**
 - [ ] 描述里保留**上游 croissantnova 的署名与 MIT 许可**（CurseForge 会检查）
 - [ ] 保留 **AI 辅助开发声明**

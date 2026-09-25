@@ -208,20 +208,18 @@ public class GuiHandler
      */
     private MutableComponent m_expiryWarning;
 
-    /** Whether a line was already picked for the current immunity-expiry window (reset when the window closes). */
-    private boolean m_expiryWarningPicked;
     /** Ticks left in the expiry warning display (the pick itself is made once per window). */
     private float m_expiryWarningTimer;
     /**
-     * The immunity buff whose expiry has already been announced, identified by the window it belonged to
-     * ({@link #m_expiryWindowGeneration}), or {@code null} when nothing was warned yet.
+     * Whether the currently open expiry window has already been announced.
      *
-     * <p>It is a generation number rather than a plain flag so that a continuously open window is announced
-     * once, while a later window (the window closed in between) is announced again.
+     * <p>A single flag is enough: the window is announced on the frame it opens, and stays announced for as
+     * long as it stays open. It is cleared only once the window has been <b>closed</b> for longer than
+     * {@link #IMMUNITY_EXPIRY_WARNING_TICKS} (see {@link #m_expiryWindowClosedTicks}), which keeps the Beta
+     * and Gamma immunity running out within five seconds of each other inside ONE window, while a genuinely
+     * later expiry opens a fresh window and is announced again.
      */
-    private int m_expiryWarnedGeneration = -1;
-    /** Window generation of the last frame that had the expiry window open; see {@link #m_expiryWarnedGeneration}. */
-    private int m_expiryWindowGeneration;
+    private boolean m_expiryWindowAnnounced;
     /** Ticks the expiry window was closed for, used to decide when a new window has started. */
     private float m_expiryWindowClosedTicks;
     /** Whether this mania already showed its one deep-tier line, so a single mania shows exactly one. */
@@ -1003,49 +1001,27 @@ public class GuiHandler
             // stays ONE window and is announced once, while a genuinely later expiry is announced again.
             m_expiryWindowClosedTicks += m_dt;
             m_expiryWarning = null;
-            m_expiryWarningPicked = false;
 
             if (m_expiryWindowClosedTicks > IMMUNITY_EXPIRY_WARNING_TICKS)
-                m_expiryWindowGeneration++;
+                m_expiryWindowAnnounced = false;
 
             return false;
         }
 
         // A window is currently open: whatever was announced belongs to this same window.
         m_expiryWindowClosedTicks = 0f;
-        m_expiryWarnedGeneration = Math.max(m_expiryWarnedGeneration, m_expiryWindowGeneration);
 
-        // Already announced in this window: keep the centre free instead of repeating the line. The line
-        // that is already on screen is NOT touched here, otherwise it would be wiped on the frame after it
-        // was picked and only ever be visible for one frame.
-        if (m_expiryWarnedGeneration == m_expiryWindowGeneration)
-            return false;
-
-        if (!m_expiryWarningPicked)
-        {
-            m_expiryWarningPicked = true;
-            m_expiryWarning = pickExpiryWarning();
-            m_expiryWarningTimer = WARNING_LINE_SHOW_TICKS;
-            m_expiryWarnedGeneration = m_expiryWindowGeneration;
-            // One line per window: makes "the expiry pool never appeared" verifiable from the log alone
-            SanityMod.LOGGER.info("[HINT-WINDOW] {} expiring ({} ticks left): {}",
-                    effectName(expiring), expiring.getDuration(),
-                    m_expiryWarning == null ? "<none available>" : m_expiryWarning.getString());
-
-            // Nothing configured for this pool: leave the window unannounced so the tier lines keep the
-            // centre, and re-check (without spamming the log) until the pool has something to say.
-            if (m_expiryWarning == null)
-                m_expiryWarnedGeneration = -1;
-        }
-
-        // Defensive: an empty or blank pool means "nothing configured" (the player may have removed every
-        // line, or the lang value may be blank), so yield to the tier lines instead of drawing nothing
-        if (m_expiryWarning == null)
-            return false;
-
-        // While the line is on screen it owns the centre; the rest of the window keeps the severe fallback,
-        // so taking the stabilizer only changes what is displayed, never the damage timing
-        if (m_expiryWarningTimer > 0f)
+        // ---- 1) A picked line is still on screen: keep drawing it and keep the centre ---------------
+        // INVARIANTS this block exists to protect (two separate bugs have already shipped from breaking
+        // them, so do not merge it back into the pick block below):
+        //   a) It must come BEFORE the "already announced" guard. With the guard first, every frame after
+        //      the picking one returned early: the timer was armed to 100 but never decremented again, so
+        //      the line was drawn exactly once and then frozen - the "only shows for one frame" report.
+        //   b) The timer is advanced HERE and only here, exactly once per frame. drawWarningLine()
+        //      re-arms m_showingHintTimer every frame, so drawing and decrementing must stay together.
+        // The deep pre-damage warning keeps the same shape a different way (tickDeepWarning only PICKS,
+        // tickHint draws and decrements); this block is the expiry warning's equivalent of that split.
+        if (m_expiryWarningTimer > 0f && m_expiryWarning != null)
         {
             // Diagnostics only: this runs while the expiry line is on screen, and the budget in
             // logWarningDiag keeps it from flooding the log.
@@ -1058,9 +1034,41 @@ public class GuiHandler
             return true;
         }
 
-        // The line is done but the immunity is still inside its window: the severe fallback keeps the
-        // centre populated instead of leaving it empty.
-        return false;
+        // ---- 2) Nothing on screen: announce this window once ---------------------------------------
+        // Already announced in this window: keep the centre free instead of repeating the line.
+        //
+        // NOTE: this check must not be "absorbed" into the state above. An earlier version pushed the
+        // window generation into the warned generation on every open frame, which made the two counters
+        // equal on the very first frame and left this branch - and the pick below it - permanently
+        // unreachable, so the expiry line never appeared for a whole session at all.
+        if (m_expiryWindowAnnounced)
+            return false;
+
+        m_expiryWarning = pickExpiryWarning();
+        m_expiryWarningTimer = WARNING_LINE_SHOW_TICKS;
+        m_expiryWindowAnnounced = true;
+        // One line per window: makes "the expiry pool never appeared" verifiable from the log alone
+        SanityMod.LOGGER.info("[HINT-WINDOW] {} expiring ({} ticks left): {}",
+                effectName(expiring), expiring.getDuration(),
+                m_expiryWarning == null ? "<none available>" : m_expiryWarning.getString());
+
+        // Nothing configured for this pool: leave the window unannounced so the tier lines keep the
+        // centre, and re-check on the next frame (without spamming the log) in case the pool gains a
+        // line while this window is still open.
+        if (m_expiryWarning == null)
+            m_expiryWindowAnnounced = false;
+
+        // Defensive: an empty or blank pool means "nothing configured" (the player may have removed every
+        // line, or the lang value may be blank), so yield to the tier lines instead of drawing nothing
+        if (m_expiryWarning == null)
+            return false;
+
+        // ---- 3) First frame of the window: draw it once, from the next frame on block 1 owns it -----
+        logWarningDiag("expiry line on screen: [" + m_expiryWarning.getString() + "] timer="
+                + m_expiryWarningTimer + " dt=" + m_dt + " madness=" + madness);
+        drawWarningLine(m_expiryWarning, HINT_STAGE_EXPIRY);
+        m_expiryWarningTimer -= m_dt;
+        return true;
     }
 
     /**
