@@ -3,15 +3,41 @@
 All notable changes to **Sanity: Psychological Devastation** (`sanitypd`) are listed here.
 This is an **alpha** build: entries marked *alpha* may still change without notice.
 
-Version format: `<minecraft>-forge<forge>-<mod>` — the current artifact is `sanitypd-mc1.20-1.1.0.jar`
-(Minecraft 1.20.1 / Forge 46 / mod 1.1.0). There is no `-alpha` suffix in the file name yet: the alpha status
+Version format: `<minecraft>-forge<forge>-<mod>` — the current artifact is `sanitypd-mc1.20-1.1.1.jar`
+(Minecraft 1.20.1 / Forge 46 / mod 1.1.1). There is no `-alpha` suffix in the file name yet: the alpha status
 is stated in the mod description and in this changelog, not in the version string.
 
 ---
 
-## 1.1.0 — current
+## 1.1.1 — current
 
 **Status: alpha test build.** Back up your worlds before installing.
+
+Fixes for the inner-voice warnings. Both bugs lived in the same state machine, so **if you are on 1.1.0
+please update**: on that build the "immunity is about to expire" warning could not appear at all (or
+appeared for a single frame and then froze).
+
+### Fixes
+* **The immunity-expiry warning was unreachable.** The state machine that decides "has this window been
+  announced yet" compared two counters that had already been made equal on the same frame, so the branch
+  that picks a line was never entered: the warning never appeared for a whole session. It is now a single
+  flag set when a line is picked and cleared only once the window has been closed for longer than the
+  warning window itself, so two overlapping immunity windows are still announced only once.
+* **Fixed a regression that made the warning last exactly one frame.** The "already announced" check had
+  been placed before the code that redraws the line and counts its display timer down, so after the first
+  frame the timer was never advanced again and the line froze instead of playing out. Drawing and the
+  countdown now run together for the full duration (~5 seconds).
+* **The centre line was being drawn at roughly 6% opacity** (1.1.0), which is indistinguishable from
+  "nothing is drawn" on a real screen; the alpha floor is now 60% and the breathing ripple no longer
+  degenerates on a negative timer. The centre line is also much more legible in general.
+* The centre-line shake updates at the game tick rate rather than the frame rate, which removes the
+  flicker-fast trembling.
+
+---
+
+## 1.1.0
+
+**Status: alpha test build — superseded by 1.1.1.** Back up your worlds before installing.
 
 ### Sanity system
 * Sanity is now **point-based**: players cap at 100, other mobs cap at their max health;
@@ -62,11 +88,11 @@ is stated in the mod description and in this changelog, not in the version strin
   (3 built-in lines, editable with `/sanity hint expiry …`).
 * The **expiry warning pool now also covers *Inner Immunity*** (the Gamma stabilizer): whichever immunity
   ends first is announced, and when the two immunity windows overlap the warning is shown **only once**.
-* **Inner-voice visibility fix**: the centre line was being drawn at roughly 6% opacity, which is
-  indistinguishable from "nothing is drawn" on a real screen; the alpha floor is now 60% and the breathing
-  ripple no longer degenerates on a negative timer. The centre line is also much more legible in general.
-* The centre-line shake now updates at the game tick rate rather than the frame rate, which removes the
-  flicker-fast trembling.
+  ⚠️ **In this build the warning could not actually be displayed — see the 1.1.1 entry above.**
+* ~~**Inner-voice visibility fix**~~ / ~~**expiry-warning fix**~~ — both were attempted in this build but the
+  result was still wrong (the centre line stayed at ~6% opacity). The working fixes are in **1.1.1**.
+* The centre-line shake now updates at the game tick rate rather than the frame rate.
+  ⚠️ **This build still drew the line at ~6% opacity, so it was not visible — fixed in 1.1.1.**
 * The **title-screen splash pool** gains a few extra lines (vanilla lines all kept).
 * 8 upstream defects fixed: pet death penalty never applied, block cooldowns saved to the wrong table,
   chunk "player placed block" tracking losing entries, inner-entity capability packet resent every tick,

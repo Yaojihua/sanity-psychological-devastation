@@ -89,10 +89,9 @@ public final class MentalHintManager
     /**
      * Lang key prefix for the extra expiry warning pool; the index is appended, e.g. {@code hint30}.
      *
-     * <p>The matching lang values are intentionally <b>empty</b> (see {@code TIER_DEFAULT_COUNTS_EXPIRY}),
-     * so the pool holds one blank placeholder instead of nothing. A blank line can never be drawn: the
-     * draw path in {@link GuiHandler} skips empty text, so the pool behaves as "off" until the owner adds
-     * real lines with {@code /sanity hint expiry add <text>}.
+     * <p>The matching lang values are real lines. A blanked or removed value can never be drawn: the draw
+     * path in {@link GuiHandler} skips empty text, so an emptied pool behaves as "off" instead of leaving
+     * an empty line on screen. Owners can add their own with {@code /sanity hint expiry add <text>}.
      */
     private static final String TIER_KEY_PREFIX_EXPIRY = "gui." + SanityMod.MODID + ".hint3";
 
@@ -164,9 +163,9 @@ public final class MentalHintManager
             s_defaults[tier] = pool;
         }
 
-        // The expiry warning pool ships empty: its single placeholder entry resolves to a blank string
-        // (the lang value is ""), and the draw path skips blank text, so nothing appears until a line is
-        // added with "/sanity hint expiry add <text>".
+        // The expiry warning pool ships with real lines in the lang file (hint30..hint32). The draw path
+        // still skips blank text (see hasText), so an owner who blanks or removes every value leaves the
+        // pool behaving as "off" instead of drawing an empty line.
         MutableComponent[] expiryPool = new MutableComponent[TIER_DEFAULT_COUNT_EXPIRY];
         for (int i = 0; i < TIER_DEFAULT_COUNT_EXPIRY; i++)
             expiryPool[i] = Component.translatable(TIER_KEY_PREFIX_EXPIRY + i);
@@ -251,8 +250,8 @@ public final class MentalHintManager
         /**
          * Whether this entry carries drawable text.
          *
-         * <p>The expiry warning pool ships with one placeholder whose lang value is empty, so callers that
-         * must not draw a blank line filter on this instead of on the pool size.
+         * <p>A lang value may resolve to blank (removed or emptied by the owner), so callers that must not
+         * draw a blank line filter on this instead of on the pool size.
          */
         public boolean hasText()
         {

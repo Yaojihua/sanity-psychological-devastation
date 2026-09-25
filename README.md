@@ -34,7 +34,7 @@ files on a Releases page are built from this source.
 **To play:**
 
 1. Install **Minecraft Forge** for **1.20.1** and run it once.
-2. Put **GeckoLib** and `sanitypd-mc1.20-1.1.0.jar` into your `mods/` folder.
+2. Put **GeckoLib** and `sanitypd-mc1.20-1.1.1.jar` into your `mods/` folder.
    *GeckoLib is required.* Use **4.2** on Forge 46, or **4.8.4** on Forge 47.1+ — a mismatched pair makes the
    game report a missing `geckolib` dependency, but the real cause is the Forge version.
 3. Launch the game. The config file is generated on first run.
