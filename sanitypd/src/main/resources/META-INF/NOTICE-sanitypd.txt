@@ -83,3 +83,16 @@ Development disclosure
 --------------------------------------------------------------------------------
 Parts of this mod were developed with AI assistance (DeepSeek Harness, "dsh").
 All design decisions, in-game testing and final review were done by the author.
+
+--------------------------------------------------------------------------------
+Other assets (moved here from the LICENSE file)
+--------------------------------------------------------------------------------
+The LICENSE file is now the verbatim MIT text so that GitHub and CurseForge can
+detect the license automatically. The statements that used to sit around it are
+kept here, word for word:
+
+    Sound effects retain their respective license which can be found at:
+    https://www.zapsplat.com/license-type/standard-license/
+
+    All rights reserved for all other assets
+
