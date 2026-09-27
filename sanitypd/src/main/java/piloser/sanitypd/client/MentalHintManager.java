@@ -17,8 +17,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 import java.util.Random;
 
@@ -33,6 +35,10 @@ import java.util.Random;
  * <p>Players extend any tier with {@code /sanity hint add|remove|clear}. Custom lines are merged
  * with the built-in ones instead of replacing them, and removing them all falls back to the
  * defaults. The pool is stored per client instance in {@code config/sanitypd_mental_hints.json}.
+ *
+ * <p>A separate pool ({@link HiddenVoicePool}) shares the <b>severe</b> tier's draw once the current save
+ * has unlocked it. It lives outside the tier machinery on purpose: it is not a fourth tier, so the command
+ * list never shows it, the commands cannot edit it, and the preview cannot draw it.
  *
  * <p>The whole class is client-only ({@link OnlyIn}) because hints apply to the current save only,
  * so they are stored and rendered locally with no new network packet. Server code never references
@@ -50,9 +56,9 @@ public final class MentalHintManager
     /**
      * Index of the extra "immunity is about to expire" warning pool.
      *
-     * <p>It is deliberately <b>not</b> one of the madness tiers: no madness value selects it, it never
-     * takes part in {@code tierForMadness}, and by default it ships <b>empty</b>, so it can never appear
-     * unless a line was added through {@code /sanity hint expiry add <text>}. {@link GuiHandler} shows a
+     * <p>It is deliberately <b>not</b> one of the madness tiers: no madness value selects it, and it never
+     * takes part in {@code tierForMadness}. It ships with real lines (the {@code hint3X} keys in the lang
+     * file), plus any the owner adds through {@code /sanity hint expiry add <text>}. {@link GuiHandler} shows a
      * line from it only during the last {@code IMMUNITY_EXPIRY_WARNING_TICKS} of the mania-immunity
      * buff (see the expiry warning window there). Keeping it separate is what stops it from ever mixing
      * with the three madness pools.
@@ -74,6 +80,12 @@ public final class MentalHintManager
 
     /** Madness threshold per tier; index = tier. */
     public static final float[] TIER_THRESHOLDS = { T0_MADNESS, T1_MADNESS, T2_MADNESS };
+
+    /**
+     * Index of the severe tier: the only tier the extra inner-voice pool shares its draw with
+     * (see {@link HiddenVoicePool} and {@link #pickHintForDraw(int)}).
+     */
+    public static final int TIER_SEVERE = 1;
 
     /** Lang key prefix per tier; the index is appended, e.g. {@code hint00}, {@code hint10}, {@code hint20}. */
     private static final String[] TIER_KEY_PREFIXES =
@@ -294,11 +306,20 @@ public final class MentalHintManager
     /**
      * Result of one pick.
      *
-     * @param text the line to display
-     * @param id   index within the <b>default</b> pool, or {@code -1} for a custom line.
-     *             {@link GuiHandler} uses it to reproduce the shake tied to specific default lines.
+     * @param text   the line to display
+     * @param id     index within the <b>default</b> pool, or {@code -1} for a custom line.
+     *               {@link GuiHandler} uses it to reproduce the shake tied to specific default lines.
+     * @param hidden whether the line came from the extra inner-voice pool ({@link HiddenVoicePool}). Such a
+     *               line is drawn dark red, does not shake and triggers the cave sound.
      */
-    public record Pick(MutableComponent text, int id) {}
+    public record Pick(MutableComponent text, int id, boolean hidden)
+    {
+        /** A line from the visible pools. */
+        public Pick(MutableComponent text, int id)
+        {
+            this(text, id, false);
+        }
+    }
 
     /**
      * Picks a random line for a tier and reports its index in the built-in pool.
@@ -313,6 +334,24 @@ public final class MentalHintManager
      */
     public static Pick pickHint(int tier)
     {
+        return pick(tier, false);
+    }
+
+    /**
+     * Picks a line for the regular on-screen draw.
+     *
+     * <p>The difference from {@link #pickHint(int)} is the extra inner-voice pool, which only the severe
+     * tier sees and only while the current save has unlocked it. Every other caller - the deep and expiry
+     * warning windows, and the {@code /sanity hint show} preview - keeps using {@link #pickHint(int)}, so a
+     * line from that pool can never surface through a command.
+     */
+    public static Pick pickHintForDraw(int tier)
+    {
+        return pick(tier, true);
+    }
+
+    private static Pick pick(int tier, boolean allowHiddenVoice)
+    {
         if (!isValidTier(tier))
             return null;
 
@@ -320,10 +359,22 @@ public final class MentalHintManager
 
         MutableComponent[] pool = s_defaults[tier];
         List<String> custom = s_custom.get(tier);
-        int total = pool.length + custom.size();
+        List<String> hidden = allowHiddenVoice && tier == TIER_SEVERE
+                ? HiddenVoicePool.eligibleLines(custom)
+                : Collections.emptyList();
+
+        int total = pool.length + custom.size() + hidden.size();
 
         if (total == 0)
             return null;
+
+        // The severe tier - the one the extra voice shares - is dealt from a shuffled bag instead of being
+        // rolled at random. A plain roll repeated the same sentence twice in a live session and could leave
+        // the extra voice unheard for many minutes (measured in-game: two identical lines in a row, then a
+        // six minute silence while only severe lines came up). Dealing without replacement fixes both: no
+        // repeat until the whole pool has been used, and the share of every line is exactly one per round.
+        if (tier == TIER_SEVERE && allowHiddenVoice)
+            return dealSevereDraw(pool, custom, hidden);
 
         int roll = RAND.nextInt(total);
 
@@ -331,10 +382,79 @@ public final class MentalHintManager
         {
             // Built-in line: resolve to a string and wrap it back into a literal, so what is drawn is
             // guaranteed to be the resolved text.
-            return new Pick(Component.literal(resolveHintText(pool[roll])), roll);
+            return new Pick(Component.literal(resolveHintText(pool[roll])), roll, false);
         }
 
-        return new Pick(Component.literal(custom.get(roll - pool.length)), -1);
+        roll -= pool.length;
+
+        if (roll < custom.size())
+            return new Pick(Component.literal(custom.get(roll)), -1, false);
+
+        return new Pick(Component.literal(hidden.get(roll - custom.size())), -1, true);
+    }
+
+    /** One line waiting to be dealt by {@link #dealSevereDraw}: the drawn text plus where it came from. */
+    private record Candidate(String text, int id, boolean hidden) {}
+
+    /** Lines still to be dealt for the severe draw, the candidate set they were built from, and the last one dealt. */
+    private static final Deque<Candidate> s_severeBag = new ArrayDeque<>();
+    private static String s_severeBagSource = "";
+    private static String s_severeLastDealt = "";
+
+    /**
+     * Deals the next line of the severe draw from a shuffled bag covering <b>the whole shared pool</b>
+     * (built-in lines + the player's own lines + the extra inner-voice lines while unlocked).
+     *
+     * <p>Why a bag rather than a roll: with an even roll the same sentence can repeat immediately and a
+     * whole group of lines can stay away for minutes - both were reported from a live session. Dealing
+     * without replacement makes the order visibly fair (every line appears once per round) while keeping the
+     * share between the built-in and the extra lines exactly proportional to their counts.
+     *
+     * <p>The bag is rebuilt whenever the candidate set changes (tier content edited, the extra pool
+     * unlocked or locked, the player name resolved differently, the language switched), and the line dealt
+     * last is kept away from the front of a fresh bag so a rebuild cannot repeat it back to back.
+     */
+    private static Pick dealSevereDraw(MutableComponent[] pool, List<String> custom, List<String> hidden)
+    {
+        List<Candidate> candidates = new ArrayList<>(pool.length + custom.size() + hidden.size());
+
+        for (int i = 0; i < pool.length; i++)
+            candidates.add(new Candidate(resolveHintText(pool[i]), i, false));
+
+        for (String text : custom)
+            candidates.add(new Candidate(text, -1, false));
+
+        for (String text : hidden)
+            candidates.add(new Candidate(text, -1, true));
+
+        if (candidates.isEmpty())
+            return null;
+
+        StringBuilder key = new StringBuilder(candidates.size() * 16);
+        for (Candidate c : candidates)
+            key.append(c.text()).append('\u0000');
+
+        if (!key.toString().equals(s_severeBagSource))
+        {
+            s_severeBagSource = key.toString();
+            s_severeBag.clear();
+        }
+
+        if (s_severeBag.isEmpty())
+        {
+            List<Candidate> shuffled = new ArrayList<>(candidates);
+            Collections.shuffle(shuffled, RAND);
+
+            if (shuffled.size() > 1 && shuffled.get(0).text().equals(s_severeLastDealt))
+                Collections.swap(shuffled, 0, 1);
+
+            s_severeBag.addAll(shuffled);
+        }
+
+        Candidate dealt = s_severeBag.poll();
+        s_severeLastDealt = dealt.text();
+
+        return new Pick(Component.literal(dealt.text()), dealt.id(), dealt.hidden());
     }
 
     /**
@@ -395,29 +515,58 @@ public final class MentalHintManager
     /** Maximum length of a single line, in characters. */
     public static final int MAX_HINT_LENGTH = 120;
 
-    /** Adds a line. Returns {@code null} on success, otherwise an error lang key. */
-    public static String addHint(int tier, String text)
+    /**
+     * Outcome of {@link #addHint(int, String)}.
+     *
+     * @param errorKey error language key to echo, or {@code null} when there is nothing to report
+     * @param silent   whether the line was refused on purpose, in which case the command must say nothing
+     */
+    public record AddResult(String errorKey, boolean silent)
+    {
+        private static final AddResult ADDED = new AddResult(null, false);
+
+        /**
+         * The line repeats a built-in line of the extra inner-voice pool.
+         *
+         * <p>Refused without a message on purpose (see {@link HiddenVoicePool}): the point is that the same
+         * sentence never ends up in a pool twice, not to advertise that the pool exists.
+         */
+        public static final AddResult SILENT = new AddResult(null, true);
+
+        static AddResult error(String key)
+        {
+            return new AddResult(key, false);
+        }
+    }
+
+    /** Adds a line. */
+    public static AddResult addHint(int tier, String text)
     {
         if (!isValidTier(tier))
-            return "commands.sanity.hint.invalid_tier";
+            return AddResult.error("commands.sanity.hint.invalid_tier");
 
         if (text == null || text.isBlank())
-            return "commands.sanity.hint.empty";
+            return AddResult.error("commands.sanity.hint.empty");
+
+        // Checked before the length and duplicate rules, and answered with silence: a text that repeats one of
+        // the extra inner-voice lines is not a player error worth explaining.
+        if (HiddenVoicePool.matchesForbiddenText(text))
+            return AddResult.SILENT;
 
         if (text.length() > MAX_HINT_LENGTH)
-            return "commands.sanity.hint.too_long";
+            return AddResult.error("commands.sanity.hint.too_long");
 
         List<String> list = s_custom.get(tier);
 
         if (list.size() >= MAX_CUSTOM_PER_TIER)
-            return "commands.sanity.hint.full";
+            return AddResult.error("commands.sanity.hint.full");
 
         if (list.contains(text))
-            return "commands.sanity.hint.duplicate";
+            return AddResult.error("commands.sanity.hint.duplicate");
 
         list.add(text);
         save();
-        return null;
+        return AddResult.ADDED;
     }
 
     /**

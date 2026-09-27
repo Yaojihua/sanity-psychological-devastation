@@ -134,6 +134,7 @@
 	"commands.sanity.hint.remove.invalid": "编号 %s 无效：内置句（1-%s）删不掉"
 ,
 	"commands.sanity.hint.list.mixed": "%1$s档现有 %2$s 条内置句 + %3$s 条自定义句（两者一起随机抽取）",
+	"gui.sanitypd.egg.escape": "你感觉有些东西被顺走了......",
 	"gui.sanitypd.egg.watcher": "祂在看着你...",
 	"item.sanitypd.shadow_sword.tooltip2": "可用内在团块在铁砧升级以提升该武器的精神伤害",
 	"item.sanitypd.shadow_axe.tooltip2": "可用内在团块在铁砧升级以提升该武器的精神伤害",
@@ -141,5 +142,22 @@
 	"gui.sanitypd.hint30": "那种感觉又回来了......",
 	"gui.sanitypd.hint31": "不要那样......",
 	"gui.sanitypd.hint32": "它们......它们......",
-	"commands.sanity.hint.tier.3": "免疫到期"
+	"gui.sanitypd.hint40": "对我能从你意识里说话感到很奇怪吗，{player}？",
+	"gui.sanitypd.hint41": "{player},继续前进",
+	"gui.sanitypd.hint42": "{player},你或许正在为你发疯的容器而烦躁?",
+	"gui.sanitypd.hint43": "起来,{player}",
+	"gui.sanitypd.hint44": "我知道你能看到我的话，{player}",
+	"gui.sanitypd.hint45": "我知道你能做到，{player}",
+	"commands.sanity.hint.tier.3": "免疫到期",
+	"item.sanitypd.macaron_red": "红色马卡龙",
+	"item.sanitypd.macaron_orange": "橙色马卡龙",
+	"item.sanitypd.macaron_yellow": "黄色马卡龙",
+	"item.sanitypd.macaron_green": "绿色马卡龙",
+	"item.sanitypd.macaron_light_blue": "淡蓝色马卡龙",
+	"item.sanitypd.macaron_blue": "蓝色马卡龙",
+	"item.sanitypd.macaron_purple": "紫色马卡龙",
+	"item.sanitypd.macaron_pink": "粉色马卡龙",
+	"item.sanitypd.macaron.flavour": "§7可爱的马卡龙总能受到各种存在的喜爱",
+	"item.sanitypd.macaron.tooltip": "§7使用后获得生命恢复,且缓慢恢复你的理智",
+	"effect.sanitypd.sanity_regen": "理智恢复"
 }

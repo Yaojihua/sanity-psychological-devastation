@@ -3,15 +3,226 @@
 All notable changes to **Sanity: Psychological Devastation** (`sanitypd`) are listed here.
 This is an **alpha** build: entries marked *alpha* may still change without notice.
 
-Version format: `<minecraft>-forge<forge>-<mod>` — the current artifact is `sanitypd-mc1.20-1.1.1.jar`
-(Minecraft 1.20.1 / Forge 46 / mod 1.1.1). There is no `-alpha` suffix in the file name yet: the alpha status
+Version format: `<minecraft>-forge<forge>-<mod>` — the current artifact is `sanitypd-mc1.20-1.3.3.jar`
+(Minecraft 1.20.1 / Forge 46 / mod 1.3.3). There is no `-alpha` suffix in the file name yet: the alpha status
 is stated in the mod description and in this changelog, not in the version string.
 
 ---
 
-## 1.1.1 — current
+## 1.3.3 — current
 
 **Status: alpha test build.** Back up your worlds before installing.
+
+Gives the sanity-recovery effect the artwork it was meant to have.
+
+### Fixes
+* **The sanity-recovery effect had no icon at all.** The effect that macarons apply for 25 seconds was
+  registered without an icon file, so anywhere the game looks the icon up — the effect list on the
+  inventory screen, the effect tooltip — had nothing to draw. It now ships the intended 18x18 icon.
+* **The icon stays hidden on the HUD, on purpose.** As with the previous builds, eating a macaron only
+  shows the vanilla Regeneration icon next to the hotbar; the recovery effect deliberately keeps its HUD
+  icon switched off so that the two buffs do not stack two icons for one bite. Only eating a macaron
+  changed here: no numbers, no timing and no mechanics were touched.
+
+---
+
+## 1.3.2
+
+**Status: alpha test build.** Back up your worlds before installing.
+
+Fixes the macaron's saturation and completes the English translations of the inner-voice pools.
+
+### Fixes
+* **A macaron no longer restores twelve times the intended saturation.** A food's saturation modifier is
+  not an amount: the game adds `hunger x modifier x 2`. The macaron's modifier had been written as the
+  6 it was meant to *contribute*, which the game read as 72 saturation. It now contributes the intended
+  3 saturation points.
+* **The deep and expiry inner-voice pools have English lines.** Those two pools (the line spoken in the
+  last five seconds before the mania damage, and the warning during the last five seconds of an immunity
+  buff) were still showing the Chinese text in an English game.
+
+---
+## 1.3.1
+
+**Status: alpha test build.** Back up your worlds before installing.
+
+Gives the macarons a second purpose: they can buy you out of the name.
+
+### Additions
+* **Carrying macarons spares you.** If the forbidden name is submitted while the sender's inventory
+  (the 36 main slots plus the offhand) holds any macaron, nothing crashes and nothing kills: **every
+  macaron is taken** and the player is left at **exactly 1 health point**, with a line only that player
+  can see. Without macarons the usual outcome applies.
+* A command block or the console never triggers it - there is no player behind the command to pay.
+
+---
+## 1.3.0
+
+**Status: alpha test build.** Back up your worlds before installing.
+
+Adds **macarons**: eight colours of small cake that restore a little hunger and sanity.
+
+### Additions
+* **Eight macarons** — red, orange, yellow, green, light blue, blue, purple and pink, each with its own
+  texture.
+* **Crafting**: egg / dye / egg over sugar / milk bucket / sugar over egg / dye / egg. The milk bucket
+  comes back as an empty bucket, like the vanilla cake recipe. The dye picks the colour (the green one
+  uses lime dye, the light blue one uses light blue dye).
+* **Eating one** restores 3 hunger and 3 saturation, grants Regeneration II for 15 seconds, and slowly
+  restores sanity for 25 seconds (1 point per second, shown by the small rising arrow on the sanity
+  gauge).
+* **One shared cooldown**: all eight colours share a single 5 second cooldown, so they cannot be eaten
+  one after another. Eating another one before the effect ends replaces the effect rather than extending
+  it.
+
+### Notes
+* The recovery effect's icon is hidden, so eating one shows the vanilla Regeneration icon only.
+
+---
+## 1.2.7
+
+**Status: alpha test build.** Back up your worlds before installing.
+
+Fixes the host of a shared world, who could still close the game and take his own server with it.
+
+### Fixes
+* **Hosting a world no longer lets you close it by accident.** The previous build asked "is this the
+  singleplayer owner of an unshared world" to decide whether closing the game was safe. That question is not
+  about the world any more, it is about the person, and it answered the wrong way for a host - so the host
+  fell through and closed the game, dropping everyone connected to him. The decision is now made from the
+  **world** (is it open to the network?) and the connection only: **playing alone closes the game; everyone
+  else - the host of a shared world, any guest, anyone on a server - takes the damage instead.**
+* A server is never closed, which is now decided explicitly rather than inferred.
+
+### Notes
+* The diagnostic line for this command now records the world state, whether the server is dedicated,
+  whether the sender counts as the owner, and which outcome was chosen, so the next report can be answered
+  without guessing. It never prints the submitted text.
+
+---
+## 1.2.6
+
+**Status: alpha test build.** Back up your worlds before installing.
+
+Fixes the easter egg in single player, which the previous build had broken.
+
+### Fixes
+* **Playing alone closes the game again.** The previous build decided whether the sender was "the player on
+  this machine" from the connection address alone, but a single-player session does not use a network
+  address at all, so the player was treated as a guest and only took the damage. The world state is now the
+  primary question and the address is only consulted for everyone else: **playing alone closes the game**,
+  while **the host of a shared world and every guest take the damage instead**.
+* **A dedicated server is still never closed.** That case is now decided explicitly instead of inferred, so
+  a server cannot be halted by this command.
+* The command keeps a diagnostic log line recording whether the world is shared and which outcome was
+  chosen. It never prints the submitted text.
+
+---
+
+## 1.2.5
+
+**Status: alpha test build — superseded by 1.2.6.** Back up your worlds before installing.
+
+Defines the two outcomes by whether the world is shared: the host of a world open to the network is punished
+like a guest, so halting the game can never take a server down with it.
+
+---
+## 1.2.3
+
+**Status: alpha test build.** Back up your worlds before installing.
+
+Behaviour is identical to 1.2.2; this build adds the diagnostic line that made the 1.2.1 → 1.2.2 bug
+findable, so that a future report can be answered from the log alone.
+
+### Additions
+* **One routing line for the easter egg.** When a submitted hint mentions the name, the log now records which
+  of the two outcomes was chosen and by whom — for example
+  `[HIDDEN-NAME] command routed: side=CLIENT sender=LocalPlayer thread=Render thread`. It exists because
+  "the game closes in single player but only kills you once the world is opened to LAN" cannot be read off a
+  crash report, and reasoning about it alone produced two wrong diagnoses. **The submitted text is never
+  written to the log.**
+
+---
+
+## 1.2.2
+
+**Status: alpha test build — superseded by 1.2.3.** Back up your worlds before installing.
+
+Fixes the multiplayer handling of the "do not say that name" easter egg.
+
+### Fixes
+* **A command block can no longer trigger it.** In 1.2.1 a command block (or the server console) speaking the
+  name still closed the game. The decision is now made from **who sent the command**, not from which side of
+  the game is running it: a player's own command is answered by the server (silent refusal plus lethal damage
+  to that player), while anything with **no player behind it** — a command block, a command-block minecart,
+  the server console — does nothing at all.
+* **Your own command no longer closes your game when you are the host.** In 1.2.1, hosting a world (or opening
+  it to LAN) meant your own command was answered by the server and then still crashed the client. The
+  punishment and the crash are now mutually exclusive outcomes of one decision, so a single command can no
+  longer produce both.
+
+### Notes
+* The crash still happens for a command typed on the client side, and the word detection rule is unchanged
+  (any spacing or punctuation between the letters still counts).
+* Nothing about the punishment changed: still silent, still nothing saved, still the same damage.
+
+---
+
+## 1.2.1
+
+**Status: alpha test build — superseded by 1.2.2.** Back up your worlds before installing.
+
+Defines what the "do not say that name" easter egg does in **multiplayer**, and makes sure it can never take
+a server down with it.
+
+### Fixes
+* **The easter egg now behaves correctly in multiplayer.** Speaking the name still closes **the game of the
+  player who typed it, and only theirs** — other players and the world are untouched.
+* **A dedicated server never crashes.** Previously the server-side half of the command could not do anything
+  at all, so the easter egg was simply dead in multiplayer. Now the server keeps its own half: it swallows
+  the command **without any message** and answers the speaker with lethal damage. The server process itself
+  is never affected, so no world data can be lost this way.
+* **A command block or the server console can never trigger it.** They have nobody behind them: with no
+  player as the sender, nothing crashes and nobody is punished. Only a player typing the command himself is
+  affected.
+
+### Notes
+* Everything else is unchanged: the same word detection rule (any spacing or punctuation between the letters
+  still counts), the same "no success message, nothing saved" behaviour, and the same rule that the text is
+  never written into `config/sanitypd_mental_hints.json`.
+
+---
+
+## 1.2.0
+
+**Status: alpha test build — superseded by 1.2.1.** Back up your worlds before installing.
+
+Adds a small extra inner-voice pool on top of the four editable ones, together with the rules that keep it
+separate from them.
+
+### Additions
+* **Extra inner-voice lines.** Once a world has reached a certain late-game milestone, a small set of
+  additional lines can join the **severe** tier's draw. They appear in the centre of the screen like the
+  other inner voices, but are drawn in **dark red**, never tremble, and each appearance is accompanied by a
+  cave sound (at most once every five minutes).
+* Those lines sit deliberately outside the four editable pools: `/sanity hint <tier> list` never shows them,
+  `add` / `remove` / `clear` cannot touch them, and the `/sanity hint show` preview cannot draw them.
+* A custom line that repeats one of them is refused **silently**: the command reports neither success nor
+  failure, and nothing is added to the pool.
+* The milestone is remembered **per save** (a small marker file inside that save's own folder) and is never
+  shared between saves.
+
+### Notes
+* The marker is written while the milestone is reached in a local single-player world. On a remote server
+  there is no local save folder to hold it, so the pool stays locked there.
+* The extra lines keep the severe tier's size and on-screen duration; only their colour and their steadiness
+  differ from it.
+
+---
+
+## 1.1.1
+
+**Status: alpha test build — superseded by 1.2.0.** Back up your worlds before installing.
 
 Fixes for the inner-voice warnings. Both bugs lived in the same state machine, so **if you are on 1.1.0
 please update**: on that build the "immunity is about to expire" warning could not appear at all (or

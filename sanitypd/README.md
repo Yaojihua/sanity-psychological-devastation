@@ -152,13 +152,26 @@ All commands need operator permission. `/sanity` is the root.
 | `/sanity hint <tier> add\|remove\|list\|clear\|show` | manage the inner-monologue hint pools (mild / severe / deep / **expiry**).<br>**How the tiers are used**: at 25% sanity or below only the *severe* pool is drawn (the deep tier is no longer part of the regular draw); the *deep* tier speaks exactly one randomly picked line during the last 5 seconds before the mania damage starts; while **mania immunity** is held only the *severe* pool is drawn, and during that buff's last 5 seconds the **expiry** pool is shown instead (3 built-in lines, editable through the `expiry` tier) |
 | `/sanity config reload` | reload the configuration |
 
+### Multiplayer note: submitting a hint that mentions the one word
+
+Pasting a custom hint that mentions a particular word (any punctuation or spacing between the letters still
+counts) is refused, and what happens to you depends on which side of the game you are on:
+
+* **Your own game closes**, in single player and in multiplayer alike. This always affects only the person
+  who typed it.
+* **A dedicated server never crashes.** It keeps a half of its own: the command is swallowed **without any
+  message** and the player who typed it takes lethal damage on the spot. The server process itself is never
+  touched, so no world data can be lost this way.
+* **A command block or the server console can never trigger it.** With no player behind the command nothing
+  happens at all — no crash and no damage. Only a player typing it himself is affected.
+
 ## Companion tool: SanityPD Probe (思维探针 / "Mind Probe")
 
 This project also ships an **optional, separate** diagnostic mod, `sanityprobe`. It is **not needed to play**
 and changes nothing about the game. It exists so that behaviour only observable on a real client can actually
 be verified — a dedicated server cannot prove anything about rendering, HUD or animation.
 
-**Installing it:** drop `sanityprobe-mc1.20-2.7.0.jar` into `mods/` next to this mod. No setup is required.
+**Installing it:** drop `sanityprobe-mc1.20-2.11.2.jar` into `mods/` next to this mod. No setup is required.
 Remove the jar when you are done — nothing depends on it.
 
 **Where the information goes:**

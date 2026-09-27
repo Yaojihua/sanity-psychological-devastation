@@ -67,6 +67,68 @@ public class ItemRegistry
             () -> new StabilizerItem(StabilizerItem.Kind.GAMMA,
                     new Item.Properties().food(StabilizerItem.stabilizerFood())));
 
+    // ---------------------------------------------------------------- macarons
+    // Eight colours of the same cake. They all share one food value and one set of effects, and they
+    // deliberately share one cooldown: eating any colour puts all eight on cooldown for 5 seconds
+    // (see MacaronItem#startSharedCooldown), so the colours cannot be chained.
+    // Recipes: data/sanitypd/recipes/macaron_<colour>.json, one 3x3 layout differing only in the dye.
+    // The milk bucket in the layout is a container ingredient, so crafting returns an empty bucket the
+    // same way the vanilla cake recipe does.
+    //
+    // WARNING: this list must be declared BEFORE the eight constants below. Java runs static
+    // initializers in source order, and the constants fill this list through macaron(); declaring the
+    // list after them leaves it null while they run, which fails the whole mod at construction time
+    // with an ExceptionInInitializerError. Adding a colour means adding: an enum constant in
+    // MacaronItem.Colour, a constant below, a texture, a model, a recipe and two language entries per
+    // language.
+    private static final java.util.List<RegistryObject<Item>> MACARONS = new java.util.ArrayList<>();
+
+    /** Red macaron. */
+    public static final RegistryObject<Item> MACARON_RED = macaron(MacaronItem.Colour.RED, "macaron_red");
+    /** Orange macaron. */
+    public static final RegistryObject<Item> MACARON_ORANGE = macaron(MacaronItem.Colour.ORANGE, "macaron_orange");
+    /** Yellow macaron. */
+    public static final RegistryObject<Item> MACARON_YELLOW = macaron(MacaronItem.Colour.YELLOW, "macaron_yellow");
+    /** Green macaron (crafted with lime dye, like the vanilla "lime" colour name). */
+    public static final RegistryObject<Item> MACARON_GREEN = macaron(MacaronItem.Colour.GREEN, "macaron_green");
+    /** Light blue macaron (the art is cyan; the dye and the name are both light blue). */
+    public static final RegistryObject<Item> MACARON_LIGHT_BLUE = macaron(MacaronItem.Colour.LIGHT_BLUE, "macaron_light_blue");
+    /** Blue macaron. */
+    public static final RegistryObject<Item> MACARON_BLUE = macaron(MacaronItem.Colour.BLUE, "macaron_blue");
+    /** Purple macaron. */
+    public static final RegistryObject<Item> MACARON_PURPLE = macaron(MacaronItem.Colour.PURPLE, "macaron_purple");
+    /** Pink macaron. */
+    public static final RegistryObject<Item> MACARON_PINK = macaron(MacaronItem.Colour.PINK, "macaron_pink");
+
+    /**
+     * Every macaron, in creative-tab order.
+     *
+     * <p>The single source of truth for "which colours exist": the shared cooldown loop, the creative
+     * tab and the self-check all read it, and {@link #macaron} is the only thing that fills it. Callers
+     * must not modify it.
+     *
+     * @return an unmodifiable view of the eight macarons
+     */
+    public static java.util.List<RegistryObject<Item>> MACARONS()
+    {
+        return java.util.Collections.unmodifiableList(MACARONS);
+    }
+
+    /**
+     * Registers one macaron colour and adds it to {@link #MACARONS}.
+     *
+     * <p>The id is a plain literal at every call site rather than {@code "macaron_" + colour.id()}: the
+     * static binding audit reads these registrations with a regular expression, and a built-up id shows
+     * up there as the meaningless intermediate {@code macaron_}.
+     */
+    private static RegistryObject<Item> macaron(MacaronItem.Colour colour, String id)
+    {
+        RegistryObject<Item> item = DEFERRED_REGISTER.register(id,
+                () -> new MacaronItem(colour, new Item.Properties().food(MacaronItem.macaronFood())));
+        MACARONS.add(item);
+        return item;
+    }
+
     // ---------------------------------------------------------------- inner mob spawn eggs
     // The egg textures are 16x16 solid egg shapes used as-is at their original resolution, so each
     // item draws its own texture with a white tint instead of using the vanilla grayscale

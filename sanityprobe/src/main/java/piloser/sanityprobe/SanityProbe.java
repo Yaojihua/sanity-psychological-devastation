@@ -32,11 +32,18 @@ public class SanityProbe
     public static final String MODID = "sanityprobe";
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    /** Probe version - must match `mod_version` in `gradle.properties` and the jar file name. */
-    public static final String VERSION = "2.9.0";
+    /**
+     * Probe version - must match `mod_version` in `gradle.properties` and the jar file name.
+     *
+     * <p>This is a hand-maintained copy and has already drifted once: a build shipped with this constant
+     * one release behind, so the armed banner and every log line reported the previous version and a
+     * screenshot could not identify the build. Bump it together with `gradle.properties` and the jar name,
+     * and check the armed line after building.
+     */
+    public static final String VERSION = "2.11.2";
 
     /** Content revision of this build; printed in the HUD header only, to identify a build in a screenshot. */
-    public static final String ROUND_TAG = "crawler-gates";
+    public static final String ROUND_TAG = "egg-side-fix";
 
     public SanityProbe()
     {
@@ -57,5 +64,7 @@ public class SanityProbe
         MinecraftForge.EVENT_BUS.register(HintWindowProbe.class);
         // CrawlerSanityProbe does the same (round 29 - the 50% / 75% crawler gates and the boss exemption)
         MinecraftForge.EVENT_BUS.register(CrawlerSanityProbe.class);
+        // HiddenVoiceProbe does the same: the extra inner-voice pool, its per-save unlock and its sound
+        MinecraftForge.EVENT_BUS.register(HiddenVoiceProbe.class);
     }
 }

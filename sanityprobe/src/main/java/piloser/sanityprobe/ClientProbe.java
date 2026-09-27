@@ -98,6 +98,7 @@ public final class ClientProbe
             ShieldPriorityProbe.init();
             EggProbe26.init();
             EnchantProbe26.init();
+            EggSideProbe33.init();
         }
         catch (Throwable t)
         {

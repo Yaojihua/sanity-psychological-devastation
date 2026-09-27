@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ede",
+    "sms",
+    "ede"
+  ],
+  "key": {
+    "e": {
+      "item": "minecraft:egg"
+    },
+    "d": {
+      "item": "minecraft:red_dye"
+    },
+    "s": {
+      "item": "minecraft:sugar"
+    },
+    "m": {
+      "item": "minecraft:milk_bucket"
+    }
+  },
+  "result": {
+    "item": "sanitypd:macaron_red",
+    "count": 1,
+    "container": {
+      "item": "minecraft:bucket"
+    }
+  }
+}

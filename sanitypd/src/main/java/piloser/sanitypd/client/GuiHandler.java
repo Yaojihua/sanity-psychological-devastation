@@ -84,8 +84,11 @@ public class GuiHandler
      * Tier whose line is shown to the centre while a warning window is open:
      * {@code 1} = severe (the tier every madness at or above the threshold falls back to) and
      * {@code 2} = deep (talked once, in the window right before the mania damage starts).
+     *
+     * <p>The severe index comes from {@link MentalHintManager#TIER_SEVERE} because that is also the tier the
+     * extra inner-voice pool shares its draw with; one constant keeps the two from drifting apart.
      */
-    private static final int HINT_STAGE_SEVERE = 1;
+    private static final int HINT_STAGE_SEVERE = MentalHintManager.TIER_SEVERE;
     private static final int HINT_STAGE_DEEP = 2;
 
     /**
@@ -96,6 +99,16 @@ public class GuiHandler
 
     /** Shake amplitude of the regular inner hints (render-space pixels; the outer 2x scale makes it 2 px on screen). */
     private static final int HINT_SHAKE = 1;
+
+    /**
+     * How long a regular inner line stays on screen, in ticks (about 10 s).
+     *
+     * <p>The extra inner-voice pool uses its own, shorter window ({@link HiddenVoicePool#SHOW_TICKS}).
+     * Either way the line is <b>taken off the screen</b> when its window ends (see {@link #tickHint}): it used
+     * to stay visible at the alpha floor for the whole gap, which measured 30-60 s of the same sentence and
+     * made the next line look like it was pasted on top of the previous one.
+     */
+    private static final float HINT_SHOW_TICKS = 199f;
 
     /**
      * How many ticks a shake offset stays in place before a new one is rolled.
@@ -199,6 +212,18 @@ public class GuiHandler
      * {@link #HINT_STAGE_EXPIRY} for the separate immunity-expiry pool.
      */
     private int m_hintStage = -1;
+
+    /**
+     * Whether the line on screen came from the extra inner-voice pool ({@link HiddenVoicePool}).
+     *
+     * <p>Such a line shares the severe tier's size, position and duration but is drawn dark red and never
+     * shakes, so both the colour and the shake need to know where the current line came from.
+     */
+    private boolean m_hintHiddenVoice;
+    /** Colour of the line on screen; only the extra inner-voice pool changes it. */
+    private int m_hintColor = 0xFFFFFF;
+    /** Whether "the extra inner-voice line reached the screen" was already written for this line. */
+    private boolean m_hiddenVoiceDrawLogged;
 
     /**
      * Text of the "immunity is about to expire" warning currently on screen, or {@code null}.
@@ -314,12 +339,14 @@ public class GuiHandler
         m_centreStatusCountdown = 20;
 
         // Diagnostic: the alpha that actually reaches the text call, so "drawn but invisible" is
-        // distinguishable from "not drawn" in a log.
-        SanityMod.LOGGER.info("[CENTRE] {} | hint=[{}] stage={} timer={} max={} alpha={} madness={} maniaTicks={} dt={}",
+        // distinguishable from "not drawn" in a log. "quiet" is the warning-window quiet stretch: while it is
+        // above zero the regular draw yields, so a frozen value there is exactly what "no line ever appears"
+        // looks like from the outside (it stayed invisible in this line until it was added).
+        SanityMod.LOGGER.info("[CENTRE] {} | hint=[{}] stage={} hidden={} quiet={} timer={} max={} alpha={} madness={} maniaTicks={} dt={}",
                 outcome,
                 m_hint == null ? "null" : m_hint.getString(),
-                m_hintStage, m_showingHintTimer, m_maxShowingHintTimer, m_lastOpacity,
-                m_cap.getMadness(), m_cap.getManiaTicks(), m_dt);
+                m_hintStage, m_hintHiddenVoice, m_maniaHintQuiet, m_showingHintTimer, m_maxShowingHintTimer,
+                m_lastOpacity, m_cap.getMadness(), m_cap.getManiaTicks(), m_dt);
     }
 
     private void initSanityPostProcess()
@@ -357,6 +384,23 @@ public class GuiHandler
                 (cap = player.getCapability(SanityProvider.CAP).orElse(null)) != null &&
                 cap.getMadness() > 0 &&
                 action.apply(cap);
+    }
+
+    /**
+     * Whether the player is currently under a macaron's slow sanity recovery.
+     *
+     * <p>That recovery is applied by the server once per second, so the capability's passive value is 0
+     * between those steps and the HUD brain arrow would never light up on its own. Reading the effect
+     * here is what makes the arrow appear for the whole 25 seconds.
+     *
+     * <p>The effect is looked up by name rather than through {@code EffectRegistry}: this class is client
+     * only, and a name lookup cannot pin a registry object at class-load time.
+     */
+    private boolean sanityRecovering()
+    {
+        return m_mc.player != null && m_mc.player.hasEffect(
+                net.minecraftforge.registries.ForgeRegistries.MOB_EFFECTS
+                        .getValue(new ResourceLocation(SanityMod.MODID, "sanity_regen")));
     }
 
     private void renderSanityIndicator(ForgeGui gui, GuiGraphics guiGraphics, float partialTick, int scw, int sch)
@@ -440,7 +484,11 @@ public class GuiHandler
             float p = ((IPassiveSanity)m_cap).getPassiveIncrease();
             float absp;
             int os;
-            if (p != 0)
+            // A macaron's slow recovery arrives one whole point per second, which is a single jump for the
+            // arrow; without the second half of this test the arrow would only appear while some other
+            // passive source happened to be moving sanity at the same time.
+            boolean recovering = sanityRecovering();
+            if (p != 0 || recovering)
             {
                 if ((absp = Math.abs(p)) >= PASSIVE_THRESHOLD)
                 {
@@ -584,6 +632,13 @@ public class GuiHandler
             m_expiryDrawLogged = true;
             SanityMod.LOGGER.info("[HINT-WINDOW] immunity expiry shown on screen: {}", m_hint.getString());
         }
+        else if (m_hintHiddenVoice && !m_hiddenVoiceDrawLogged)
+        {
+            // One line per extra inner-voice line: proves that a picked line really reaches the screen, which
+            // is the failure the two earlier display bugs hid behind.
+            m_hiddenVoiceDrawLogged = true;
+            SanityMod.LOGGER.info("[THIRD-VOICE] line shown on screen: {}", m_hint.getString());
+        }
 
         PoseStack poseStack = guiGraphics.pose();
 
@@ -613,11 +668,18 @@ public class GuiHandler
         //     negative value, so the ripple degenerated to a constant 0.
         //   * The alpha floor is 0.60, not 0x10: a 6% floor is indistinguishable from "nothing is drawn"
         //     on a real screen, which is exactly how "the text is drawn but invisible" was reported.
+        //
+        // The extra inner-voice line fades from nothing instead. Its colour is dark red, so a fade that runs
+        // 60% -> 100% is not readable as a fade at all on a dark screen: the line appeared to pop in and out
+        // at full strength. Its steady brightness is unchanged - only the two fade windows start lower, and
+        // the floor is lifted out of their way so the clamp cannot flatten them again.
         float timer = Math.max(0f, m_showingHintTimer);
         float o = Math.floorMod((int) timer, 10) / 10f;
         o = ((int) timer / 10) % 2 == 0 ? o : 1 - o;
-        float fade = Mth.lerp(o, (timer >= m_maxShowingHintTimer - 9f) || timer < 10f ? .6f : .85f, 1f);
-        int opacity = Mth.clamp((int)(fade * 0xFF), 0x99, 0xEF) << 24;
+        boolean fading = timer >= m_maxShowingHintTimer - 9f || timer < 10f;
+        float fadeFrom = fading && m_hintHiddenVoice ? 0f : fading ? .6f : .85f;
+        float fade = Mth.lerp(o, fadeFrom, 1f);
+        int opacity = Mth.clamp((int)(fade * 0xFF), fading && m_hintHiddenVoice ? 0x00 : 0x99, 0xEF) << 24;
         if (DEBUG_CENTRE_MARKERS)
             opacity = 0xFF000000;
 
@@ -630,11 +692,15 @@ public class GuiHandler
         Font font = m_mc.font;
         float pX = -font.width(shown) / 2f;
         float pY = -font.lineHeight / 2f;
-        if (ConfigProxy.getTwitchHint(m_mc.player.level().dimension().location()))
+        if (ConfigProxy.getTwitchHint(m_mc.player.level().dimension().location()) && !m_hintHiddenVoice)
         {
             // The offset is rolled once per HINT_SHAKE_INTERVAL_TICKS in tick(); this call only consumes it.
             // Rolling it here instead would make the shake change on every frame, which is the "too high a
             // frequency" report this replaced.
+            //
+            // The extra inner-voice pool is excluded here as well as in tick(): that line is meant to be
+            // perfectly steady, and the guard has to hold on the very frame it is picked, before tick() has
+            // had a chance to zero the offsets.
             pX += m_hintOffsetX;
             pY += m_hintOffsetY;
         }
@@ -648,8 +714,9 @@ public class GuiHandler
         }
 
         // Same immediate call as the centre line (see drawHintLine): the batched variant produced nothing here.
+        // m_hintColor is white for every line except the extra inner-voice pool, which is drawn dark red.
         m_lastOpacity = (opacity >>> 24) & 0xFF;
-        guiGraphics.drawString(font, shown, Math.round(pX), Math.round(pY), 0xFFFFFF | opacity, true);
+        guiGraphics.drawString(font, shown, Math.round(pX), Math.round(pY), m_hintColor | opacity, true);
 
         poseStack.popPose();
         RenderSystem.disableBlend();
@@ -782,6 +849,11 @@ public class GuiHandler
 
     public void tick(float dt)
     {
+        // The extra inner-voice pool carries its own per-save unlock state and sound cooldown. Updated before
+        // the gates below, which return early while the draw is not allowed to run (paused, creative, HUD
+        // hidden): the cooldown and the save marker must keep tracking regardless of what is on screen.
+        HiddenVoicePool.onClientTick(m_mc, dt);
+
         if (m_mc.player == null || m_mc.isPaused() || m_mc.player.isCreative() || m_mc.player.isSpectator())
             return;
 
@@ -807,10 +879,13 @@ public class GuiHandler
 
         if (m_cap instanceof IPassiveSanity)
         {
+            // Keep the arrow's window alive while a macaron is restoring sanity, even though that
+            // recovery is applied on the server once per second and leaves the passive value at 0.
+            boolean recovering = sanityRecovering();
             if (m_arrowTimer <= 0)
                 m_arrowTimer = 23.99f;
             float p = ((IPassiveSanity)m_cap).getPassiveIncrease();
-            if (p != 0)
+            if (p != 0 || recovering)
                 m_arrowTimer -= dt;
         }
 
@@ -820,8 +895,9 @@ public class GuiHandler
 
             // Only hints of the severe tier (1) and deeper (2) shake; the mild tier (0) stays still,
             // and so does m_hintStage == -1 (no regular hint on screen).
+            // A line from the extra inner-voice pool shares the severe tier but is deliberately steady.
             // m_indicatorOffset (the shake of the HUD brain gauge itself) is unaffected.
-            boolean hintShakes = m_hintStage >= 1;
+            boolean hintShakes = m_hintStage >= 1 && !m_hintHiddenVoice;
             m_hintShakeAmplitude = shakeAmplitude();
 
             // The offset is held for HINT_SHAKE_INTERVAL_TICKS ticks and only re-rolled after that, so the
@@ -846,6 +922,17 @@ public class GuiHandler
             m_hintOffsetY = 0;
             m_hintShakeCooldown = 0;
         }
+
+        // Advance the warning-window quiet stretch HERE, unconditionally, exactly once per tick.
+        //
+        // INVARIANT (a shipped bug, twice over): a per-tick countdown must never be advanced inside a branch
+        // that can be skipped. This one used to be decremented at the end of tickDeepWarning, which returns
+        // early while mania immunity is held - so the counter froze at its last positive value, tickHint then
+        // dropped the centre line on every single tick, and NO inner-voice line appeared again until the buff
+        // ran out (reported as "not a single line shows"). Decrementing here makes the countdown unable to
+        // stall, whatever the window state does.
+        if (m_maniaHintQuiet > 0f)
+            m_maniaHintQuiet -= 1f;
 
         tickDeepWarning();    // run first: its quiet stretch and display state must be updated before tickHint
         MentalHintManager.tick(dt, HINT_SHAKE);   // countdown of the immediate "/sanity hint show" display
@@ -922,11 +1009,15 @@ public class GuiHandler
             m_hint = null;
             m_hintTimer = 0f;
             m_showingHintTimer = 0f;
+            m_hintHiddenVoice = false;
+            m_hintColor = 0xFFFFFF;
         }
 
         if (m_hintTimer <= 0f && m_showingHintTimer <= 0f)
         {
-            MentalHintManager.Pick picked = MentalHintManager.pickHint(stage);
+            // The draw may include a line from the extra inner-voice pool when the severe tier is drawn and the
+            // current save has unlocked it (see HiddenVoicePool). The command preview deliberately does not.
+            MentalHintManager.Pick picked = MentalHintManager.pickHintForDraw(stage);
 
             if (picked == null)
             {
@@ -936,22 +1027,57 @@ public class GuiHandler
             }
 
             m_hint = picked.text();
-            // Worse tiers keep their line on screen for a shorter time
+            m_hintHiddenVoice = picked.hidden();
+            m_hintColor = m_hintHiddenVoice ? HiddenVoicePool.COLOR_DARK_RED : 0xFFFFFF;
+            m_hiddenVoiceDrawLogged = false;
+            // Worse tiers keep their line on screen for a shorter time; the extra inner-voice line is a short
+            // whisper rather than a thought that lingers, so it has its own window (measured live: the severe
+            // window felt too long for it).
             m_hintTimer = stage == 0 ? 2000 : 600;
+            float showTicks = m_hintHiddenVoice ? HiddenVoicePool.SHOW_TICKS : HINT_SHOW_TICKS;
 
             // Existing behaviour: the 3rd mild line and the 1st severe line play a swish sound
             int soundAt = stage == 0 ? 2 : 0;
             if (ConfigProxy.getPlaySounds(dim) && picked.id() >= 0 && picked.id() == soundAt)
                 m_mc.getSoundManager().play(new SwishSoundInstance());
 
+            if (m_hintHiddenVoice)
+            {
+                // One line per pick: written separately from the draw so "picked but never drawn" stays
+                // distinguishable from "never picked", which is how the two earlier display bugs were told apart.
+                SanityMod.LOGGER.info("[THIRD-VOICE] line picked: {}", m_hint.getString());
+
+                if (ConfigProxy.getPlaySounds(dim) && HiddenVoicePool.playSoundIfReady(m_mc))
+                    SanityMod.LOGGER.info("[THIRD-VOICE] cave sound played");
+            }
+
             m_hintStage = stage;
-            m_showingHintTimer = (m_maxShowingHintTimer = 199f);
+            m_showingHintTimer = (m_maxShowingHintTimer = showTicks);
         }
 
         if (m_showingHintTimer > 0f)
+        {
             m_showingHintTimer -= dt;
+        }
         else
+        {
+            // The line has had its time: take it off the screen and let the centre stay empty until the next
+            // pick. Removing it here is the difference between "a line appears, lives, and leaves" and what
+            // was measured live: the text stayed visible at the alpha floor for the rest of the gap (30-60 s
+            // of the same sentence) and the next line then replaced it with no pause at all.
+            //
+            // m_hintTimer is deliberately left alone: it is the pause before the next line, and zeroing it
+            // here would make the next line appear on the very next tick.
+            if (m_hint != null)
+            {
+                m_hint = null;
+                m_hintStage = -1;
+                m_hintColor = 0xFFFFFF;
+                m_hintHiddenVoice = false;
+            }
+
             m_hintTimer = MathHelper.clamp(m_hintTimer - dt, 0, Float.MAX_VALUE);
+        }
     }
 
     /** Whether the player currently holds the mania-immunity effect, which blocks the mania true damage only. */
@@ -1116,6 +1242,10 @@ public class GuiHandler
 
         m_hint = line;
         m_hintStage = stage;
+        // The warning windows never draw a line from the extra inner-voice pool, so the style stays the
+        // regular white and the shake below stays active.
+        m_hintHiddenVoice = false;
+        m_hintColor = 0xFFFFFF;
         m_showingHintTimer = (m_maxShowingHintTimer = WARNING_LINE_SHOW_TICKS);
         m_showingHintTimer -= m_dt;
         m_maniaHintQuiet = WARNING_LINE_TAIL_TICKS;
@@ -1148,9 +1278,17 @@ public class GuiHandler
         }
 
         // The immunity blocks the damage this window would warn about, so the window never opens while it is
-        // held; the immunity expiry warning speaks instead
+        // held; the immunity expiry warning speaks instead.
+        //
+        // The centre must not stay reserved for a line that will never come: the leading stretch above may
+        // already have armed the quiet stretch, and holding the centre for it is what silenced every
+        // inner-voice line for the whole duration of the buff. Only an unspoken window is released; a quiet
+        // stretch that belongs to a deep line already on screen is left to drain on its own.
         if (hasManiaImmunity())
         {
+            if (!m_deepTextDone)
+                m_maniaHintQuiet = 0f;
+
             return;
         }
 
@@ -1177,8 +1315,8 @@ public class GuiHandler
                     mania, m_deepText == null ? "<none available>" : m_deepText.getString());
         }
 
-        if (m_maniaHintQuiet > 0f)
-            m_maniaHintQuiet -= 1f;
+        // No countdown here on purpose: the quiet stretch is advanced in tick() so it cannot be skipped
+        // (see the invariant there).
     }
 
     /**
@@ -1222,6 +1360,8 @@ public class GuiHandler
         m_hintStage = -1;
         m_hintTimer = 0f;
         m_showingHintTimer = 0f;
+        m_hintHiddenVoice = false;
+        m_hintColor = 0xFFFFFF;
     }
 
     private void tickBt(float dt)

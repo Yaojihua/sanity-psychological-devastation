@@ -7,6 +7,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.EnchantedBookItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -14,7 +15,6 @@ import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
-
 /**
  * Creative mode tab for this mod.
  *
@@ -53,6 +53,9 @@ public final class CreativeTabRegistry
                 output.accept(ItemRegistry.STABILIZER_A.get());
                 output.accept(ItemRegistry.STABILIZER_B.get());
                 output.accept(ItemRegistry.STABILIZER_C.get());
+                // Macaron: one 3x3 recipe differs only in the dye, and all eight share one cooldown
+                for (RegistryObject<Item> macaron : ItemRegistry.MACARONS())
+                    output.accept(macaron.get());
                 // Inner mob spawn egg trio
                 output.accept(ItemRegistry.ROTTING_STALKER_SPAWN_EGG.get());
                 output.accept(ItemRegistry.SNEAKING_TERROR_SPAWN_EGG.get());

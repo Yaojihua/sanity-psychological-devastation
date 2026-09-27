@@ -48,5 +48,14 @@ public final class EffectRegistry
      */
     public static final RegistryObject<MobEffect> INNER_IMMUNITY = EFFECTS.register("inner_immunity", InnerImmunityEffect::new);
 
+    /**
+     * Slow sanity recovery: 1 sanity point per second for 25 seconds, granted by a macaron.
+     *
+     * <p>Its icon is hidden on purpose (the macaron also grants Regeneration, whose icon is already
+     * shown), so it needs no {@code textures/mob_effect} file. The HUD brain arrow reads this effect
+     * directly, which is how the player sees the sanity climbing.
+     */
+    public static final RegistryObject<MobEffect> SANITY_REGEN = EFFECTS.register("sanity_regen", SanityRegenEffect::new);
+
     private EffectRegistry() {}
 }

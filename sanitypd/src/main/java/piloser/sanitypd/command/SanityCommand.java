@@ -21,9 +21,15 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.minecraftforge.registries.RegistryObject;
+import piloser.sanitypd.SanityMod;
 
 /**
  * The /sanity command.
@@ -50,6 +56,30 @@ public class SanityCommand
 {
     /** Upper damage bound for the debug commands; a wide range makes overflow conversion easy to test. */
     private static final float MAX_DEBUG_AMOUNT = 100000.0f;
+
+    /**
+     * True damage dealt to the sender when the hidden name is spoken on the <b>server</b> side.
+     *
+     * <p>This is the multiplayer counterpart of the hidden easter egg. The client always shuts itself
+     * down, but a dedicated server must never do that - and the server is the side that owns the
+     * authoritative player, so it answers with lethal damage instead. See
+     * {@link #applyForbiddenNamePunishment}.
+     */
+    private static final float FORBIDDEN_NAME_PUNISHMENT = 20000.0f;
+
+    /**
+     * Health a player is left with when macarons buy him out of the forbidden-name outcome.
+     *
+     * <p>The brief is explicit that this is a <b>set</b>, not a reduction: whatever the player's health
+     * was, it becomes exactly this.
+     */
+    public static final float ESCAPE_HEALTH = 1.0f;
+
+    /**
+     * Language key of the line shown to the player who paid with macarons. Only the sender sees it, so
+     * the other players learn nothing.
+     */
+    public static final String ESCAPE_MESSAGE_KEY = "gui." + SanityMod.MODID + ".egg.escape";
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
@@ -470,9 +500,347 @@ public class SanityCommand
         return result.code();
     }
 
+    /**
+     * Server half of the hidden easter egg: swallow the command and punish the speaker.
+     *
+     * <h3>Why the server must not crash</h3>
+     * The client half of the easter egg ({@code client/HiddenNameWatcher}) ends in
+     * {@code Runtime.halt}, which is correct for the game window - it simply disappears - but a
+     * dedicated server that halts would drop every other player and never write the chunks it still
+     * holds in memory. So the crash helper must only ever be reachable from the client branch below,
+     * and the server answers with something it is allowed to do: damage.
+     *
+     * <h3>The real discriminator: who sent the command</h3>
+     * This is <b>not</b> "which side is executing" and the dist is deliberately not consulted. A chat
+     * command is executed by the server even in single player
+     * ({@code ServerGamePacketListenerImpl#performChatCommand} -> {@code Commands#performCommand} on the
+     * server thread), so "ran on the server thread" and "ran on this machine" do not tell a player apart
+     * from a command block. What does tell them apart is the sender: a player command carries a
+     * {@link ServerPlayer}, while a command block, a command-block minecart and the server console all
+     * carry <b>no entity at all</b>.
+     *
+     * <h3>What it does</h3>
+     * Nothing observable through the command: no success message, no failure message, and the text is
+     * not written to {@code config/sanitypd_mental_hints.json}. The only effect is {@value
+     * FORBIDDEN_NAME_PUNISHMENT} points of true damage on the sender, which is lethal for a player and
+     * leaves the server itself completely untouched.
+     *
+     * <p>Early versions of this method also required {@code dist != CLIENT}. That was wrong for an
+     * integrated server: it sent a player's own command back into the client branch, where the crash
+     * helper shut the whole game down - including the world the command block belonged to.
+     *
+     * @param stack command source, used only to find the sender
+     * @param text  the submitted hint text
+     * @return {@code true} when the server half handled the command and the caller must return at once
+     */
+    private static boolean applyForbiddenNamePunishment(CommandSourceStack stack, String text)
+    {
+        // The detection rule lives in HiddenNameDetector, which deliberately carries no @OnlyIn and no
+        // client types, so the server is free to call it. Never call HiddenNameWatcher from here: it is
+        // @OnlyIn(CLIENT) and it halts the JVM.
+        if (!piloser.sanitypd.client.HiddenNameDetector.mentionsTheName(text))
+            return false;
+
+        ServerPlayer speaker = (ServerPlayer) stack.getEntity();
+
+        MinecraftServer server = stack.getServer();
+
+        // A dedicated server must never halt, whatever the sender looks like: it would drop every other
+        // player and lose the chunks it still holds in memory.
+        if (server.isDedicatedServer())
+            return true;
+
+        // The host of a world that is open to the network is punished exactly like a guest, and for the
+        // same reason: their game is the one holding the world, so halting it would take the server down
+        // with it. "Published" is the signal the network menu sets when the world is shared, and unlike
+        // the dist or the sender's address it distinguishes "playing alone" from "hosting".
+        if (isSingleplayerOwnerOrUnshared(server, speaker))
+            return false;
+
+        // ---- A macaron buys the player out ----
+        // Before the punishment lands: a player carrying macarons loses them and is left at one health
+        // point instead of taking the forbidden-name damage. Checked here as well as in addHint's client
+        // branch, so that every half answers the same way - a single command must have a single outcome.
+        if (spareWithMacarons(speaker))
+            return true;
+
+        // Report the outcome, never the text. Without this line the punishment is invisible in the
+        // server log, and a "did it fire?" question would need a live multiplayer session to answer.
+        SanityMod.LOGGER.info("Hidden name punished on the server side: {} took {} points of true damage",
+                speaker.getGameProfile().getName(), FORBIDDEN_NAME_PUNISHMENT);
+
+        // Sourceless true damage, the same type the /sanity truedamage command uses: it ignores armour,
+        // enchantments, resistance, absorption and shields, and its death message is the mod's own.
+        SanityDamageTypes.dealTrueDamage(speaker, FORBIDDEN_NAME_PUNISHMENT, null);
+        return true;
+    }
+
+    /**
+     * Spares a player who is carrying macarons, at the cost of every macaron he has.
+     *
+     * <p>Speaking the name normally ends in either a crash or lethal damage. A player who happens to be
+     * carrying macarons instead loses all of them - the main inventory and the offhand, which is where a
+     * player would actually be carrying cake - and is left at exactly {@value #ESCAPE_HEALTH} health
+     * point. The line about it is shown to that player alone.
+     *
+     * <p>Returns {@code false} for anything that is not a {@link ServerPlayer} with at least one macaron,
+     * which is also what keeps a command block out: the mechanic is driven by the sender, and a command
+     * block has no player behind it.
+     *
+     * @param sender whoever sent the command, possibly {@code null}
+     * @return {@code true} when the escape was applied and the caller must not punish the sender
+     */
+    public static boolean spareWithMacarons(Entity sender)
+    {
+        if (!(sender instanceof ServerPlayer player))
+            return false;
+
+        if (!hasMacaron(player))
+            return false;
+
+        int taken = takeMacarons(player);
+
+        // Exactly one health point, whatever the player had before: the brief is explicit that the health
+        // is set rather than reduced. Health is clamped by the game, so this cannot exceed the maximum or
+        // leave a dead player alive.
+        player.setHealth(ESCAPE_HEALTH);
+
+        SanityMod.LOGGER.info("[HIDDEN-NAME] {} paid {} macaron(s) for the name and was left at {} health",
+                player.getGameProfile().getName(), taken, ESCAPE_HEALTH);
+
+        // Chat, not the action bar: this is something the player noticed happening to him. Only the sender
+        // receives it, so the other players learn nothing.
+        player.sendSystemMessage(Component.translatable(ESCAPE_MESSAGE_KEY));
+
+        return true;
+    }
+
+    /** Whether any macaron of any colour sits in the main inventory or the offhand. */
+    private static boolean hasMacaron(ServerPlayer player)
+    {
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++)
+        {
+            if (isMacaron(player.getInventory().getItem(slot)))
+                return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Removes every macaron from the main inventory and the offhand.
+     *
+     * @return how many macarons were taken, for the log line
+     */
+    private static int takeMacarons(ServerPlayer player)
+    {
+        int taken = 0;
+
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++)
+        {
+            ItemStack stack = player.getInventory().getItem(slot);
+
+            if (!isMacaron(stack))
+                continue;
+
+            taken += stack.getCount();
+            player.getInventory().setItem(slot, ItemStack.EMPTY);
+        }
+
+        return taken;
+    }
+
+    /**
+     * Whether that stack is one of this mod's macarons.
+     *
+     * <p>Checked against the registry list rather than a single item constant, so every colour counts -
+     * and a colour added later counts without touching this method.
+     */
+    private static boolean isMacaron(ItemStack stack)
+    {
+        if (stack.isEmpty())
+            return false;
+
+        for (RegistryObject<Item> macaron : piloser.sanitypd.item.ItemRegistry.MACARONS())
+        {
+            if (macaron.isPresent() && stack.is(macaron.get()))
+                return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether this server belongs to a single player who is <b>not</b> sharing it.
+     *
+     * <p>That is the only situation where halting the JVM costs nothing extra: there is nobody else
+     * connected and no world anyone else depends on. Once the world is opened to the network - or the
+     * server is dedicated - the answer is {@code false} and the sender is punished instead of crashed,
+     * even when the sender is the host himself.
+     *
+     * <p>{@code isPublished()} is what the "Open to LAN" flow sets; a dedicated server reports it too,
+     * which is why the dedicated case is already handled before this method is reached.
+     *
+     * <p>WARNING: this is a secondary check. {@link #isRemoteServerPlayer} already answers "punish" for a
+     * published world <b>without</b> looking at ownership, because a LAN host was once let through by an
+     * ownership test that answered {@code false} for him. Do not make the routing depend on this method.
+     */
+    private static boolean isSingleplayerOwnerOrUnshared(MinecraftServer server, ServerPlayer speaker)
+    {
+        return !server.isPublished() && server.isSingleplayerOwner(speaker.getGameProfile());
+    }
+
+    /**
+     * Whether the sender is a player who reached this game <b>over the network</b>.
+     *
+     * <p>This is what separates the two halves of the hidden-name easter egg: a player playing alone sees
+     * the crash half, while everyone else - a guest on this machine's LAN world, a player on a dedicated
+     * server, or the host once the world is shared - is refused silently and punished, because halting
+     * their game would take a world other people depend on down with it.
+     *
+     * <h3>Why not compare the dist</h3>
+     * An integrated server runs in the client process, so {@code dist} is {@code CLIENT} for single player
+     * <b>and</b> for a LAN host <b>and</b> for every remote player who joins that LAN world. It cannot tell
+     * them apart, and gating on it was the 1.2.1 bug.
+     *
+     * <h3>Why this cannot be the only test</h3>
+     * The address alone cannot separate "playing alone" from "hosting": the host's own connection is
+     * loopback as well. That case is settled by {@link #isSingleplayerOwnerOrUnshared} inside
+     * {@link #applyForbiddenNamePunishment}; this method only covers the guests.
+     *
+     * <p>If the address cannot be read at all, the answer is {@code false} (treat the sender as the local
+     * player). That keeps the crash half reachable in the environment this mod is actually played in -
+     * a development or vanilla client with no address - and the routing log line in {@link #addHint}
+     * prints the address, so a wrong guess is visible instead of silent.
+     */
+    private static boolean isRemoteServerPlayer(CommandSourceStack stack)
+    {
+        if (!(stack.getEntity() instanceof ServerPlayer speaker))
+            return false;
+
+        MinecraftServer server = stack.getServer();
+
+        // A dedicated server has no local player at all: everyone who sends a command there is a guest,
+        // and halting it would drop every one of them. Do not try to reason about ownership here - a
+        // dedicated server reports itself as the singleplayer owner of its world, which is how an earlier
+        // version let such a server fall through to the crash half.
+        if (server.isDedicatedServer())
+            return true;
+
+        // A world that is open to the network is punished for everyone, the host included: his game is the
+        // one holding the world, so halting it would take the server down with it. This test is about the
+        // world, not about who is asking - relying on "is this the singleplayer owner" was not enough and
+        // let a LAN host crash his own server.
+        if (server.isPublished())
+            return true;
+
+        // Playing alone. The only question left is whether the sender is the player at this computer: the
+        // integrated server gives him a non-network address (`local:E:<id>`), while a guest would have a
+        // real, non-loopback one.
+        return !isLocalConnection(speaker);
+    }
+
+    /**
+     * Whether that player's connection comes from this very machine.
+     *
+     * <p>Handles both shapes a connection can take here: a real socket (a client on another machine, or
+     * one on this machine connecting through the loopback interface) and a non-network address, which is
+     * what the integrated server uses for the player sitting at this computer.
+     */
+    private static boolean isLocalConnection(ServerPlayer speaker)
+    {
+        try
+        {
+            java.net.SocketAddress address = speaker.connection.getRemoteAddress();
+
+            if (!(address instanceof java.net.InetSocketAddress inet))
+                return true;    // no network address at all: the player on this machine
+
+            java.net.InetAddress host = inet.getAddress();
+
+            if (host == null)
+                return true;
+
+            return host.isLoopbackAddress() || host.isAnyLocalAddress();
+        }
+        catch (Throwable t)
+        {
+            return true;
+        }
+    }
+
     private static int addHint(CommandSourceStack stack, SanityArgumentTypes.HintTier tier, String text)
     {
         final int index = tierIndex(tier);
+
+        // Mentioning the name is what puts a command on the hidden-name track; everything else falls
+        // through to the ordinary add path untouched.
+        final boolean speaksTheName = piloser.sanitypd.client.HiddenNameDetector.mentionsTheName(text);
+
+        // ---- Hidden content: the sender decides which half runs ----
+        // Two halves, and only one of them ever runs:
+        //   * the player who owns this game - the one playing on this machine - gets the crash half, so
+        //     the outcome matches what a local player has always seen: the window simply disappears;
+        //   * a player connected over the network (LAN or a dedicated server) gets the server half:
+        //     silent cancel + lethal true damage, because their game is not the one holding the world;
+        //   * anything with no player behind it - a command block, a command-block minecart, the server
+        //     console - never reaches either half.
+        // Whichever half runs, the player sees one outcome only, and the text is never stored.
+        //
+        // The two halves must stay disjoint: sending a crash over the network would kill every client,
+        // and the documented failure mode of getting this wrong is a dedicated server that halts and
+        // takes its unwritten chunks with it.
+        //
+        // Decide once, log it, then act on that single decision. Computing the verdict twice would let the
+        // log and the behaviour drift apart, which is exactly the kind of "the log said X" trap this line
+        // exists to remove.
+        final boolean punishedServerSide = speaksTheName && isRemoteServerPlayer(stack);
+
+        // The routing line below is the only way a player can tell which of those branches was taken:
+        // "playing alone crashes, sharing punishes" is a difference nobody can read off a crash report, and
+        // it was misdiagnosed twice by reasoning about the dist alone. It never prints the text.
+        if (speaksTheName)
+        {
+            Entity sender = stack.getEntity();
+            MinecraftServer routingServer = stack.getServer();
+            SanityMod.LOGGER.info("[HIDDEN-NAME] command routed: side={} sender={} local={} peer={} published={} dedicated={} owner={} punished={} thread={}",
+                    FMLEnvironment.dist,
+                    sender == null ? "<none>" : sender.getClass().getSimpleName(),
+                    sender instanceof ServerPlayer host && isLocalConnection(host),
+                    sender instanceof ServerPlayer peer ? String.valueOf(peer.connection.getRemoteAddress()) : "-",
+                    routingServer.isPublished(),
+                    routingServer.isDedicatedServer(),
+                    sender instanceof ServerPlayer owner
+                            && routingServer.isSingleplayerOwner(owner.getGameProfile()),
+                    punishedServerSide,
+                    Thread.currentThread().getName());
+        }
+
+        // ---- The server half: silent refusal, plus lethal damage ----
+        // Taken by whoever is not the sole player of an unshared world: a guest on a LAN world, anyone on a
+        // dedicated server, and the host himself once the world is open to the network. Halting the game of
+        // any of those would take a world other people depend on down with it.
+        if (punishedServerSide)
+        {
+            applyForbiddenNamePunishment(stack, text);
+            return 0;
+        }
+
+        // ---- Nobody to blame: a command block or the console mentioning the name ----
+        // There is no player behind the command, so dispatching it to the client half would shut down the
+        // game of whoever happens to be holding the mouse. Refuse it silently. Text that does not mention
+        // the name is left completely alone, so a command block can still add ordinary lines in LAN.
+        //
+        // This is also why the macaron escape below can never fire from a command block: with no entity
+        // there is no player to bribe, and the command is refused before any half runs.
+        if (speaksTheName && stack.getEntity() == null)
+            return 0;
+
+        // ---- Hidden content: a macaron buys the player out ----
+        // A player who is carrying macarons is spared: instead of the crash, every macaron is taken and
+        // the player is left at exactly one health point. The message goes to the sender alone.
+        if (speaksTheName && spareWithMacarons(stack.getEntity()))
+            return 0;
 
         return runOnClient(stack, () ->
         {
@@ -493,10 +861,16 @@ public class SanityCommand
                 piloser.sanitypd.client.HiddenNameWatcher.logFallback(t);
             }
 
-            String error = piloser.sanitypd.client.MentalHintManager.addHint(index, text);
+            piloser.sanitypd.client.MentalHintManager.AddResult result =
+                    piloser.sanitypd.client.MentalHintManager.addHint(index, text);
 
-            if (error != null)
-                return ClientResult.error(error);
+            // Deliberately silent refusal: the text repeats a built-in line of the extra inner-voice pool, so
+            // the command reports neither success nor failure and the line never enters the pool.
+            if (result.silent())
+                return ClientResult.ok(0);
+
+            if (result.errorKey() != null)
+                return ClientResult.error(result.errorKey());
 
             stack.sendSuccess(() -> Component.translatable("commands.sanity.hint.add.success",
                     tierName(tier), text), true);

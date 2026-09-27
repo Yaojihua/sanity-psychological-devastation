@@ -51,6 +51,16 @@ public final class HintWindowProbe
     private static String s_lastState = "";
     private static boolean s_once;
     private static String s_hud = "-";
+    /** Cached client renderer handle and its private quiet-stretch field, read reflectively. */
+    private static Object s_gui;
+    private static Field s_quietField;
+    /** Cached private "the extra inner-voice line is on screen" flag of the same object. */
+    private static Field s_hiddenField;
+    /** Whether the quiet stretch currently suppresses the regular draw ("hold" / "free"). */
+    private static String s_lastHold = "";
+    /** Whether an extra inner-voice line is on screen right now, and how long it has been (probe ticks). */
+    private static boolean s_hisOnScreen;
+    private static int s_hisTicks;
 
     private HintWindowProbe() {}
 
@@ -95,18 +105,132 @@ public final class HintWindowProbe
         int immunityTicks = immunity == null ? -1 : immunity.getDuration();
 
         String state = stateOf(madness, maniaTicks, immunityTicks);
+        float quiet = quietStretch();
 
         if (!state.equals(s_lastState))
         {
             s_lastState = state;
             ProbeLog.log("HINTWIN-28", String.format(Locale.ROOT,
-                    "window=%s | madness=%.3f (sanity %s%%) | maniaTicks=%d (grace %d) | immunityTicks=%s | expected=%s",
+                    "window=%s | madness=%.3f (sanity %s%%) | maniaTicks=%d (grace %d) | immunityTicks=%s | quiet=%s | expected=%s",
                     state, madness, ProbeLog.fmt((1f - madness) * 100f), maniaTicks, MANIA_GRACE_TICKS,
-                    immunityTicks < 0 ? "none" : String.valueOf(immunityTicks), expectedPool(state, madness)));
+                    immunityTicks < 0 ? "none" : String.valueOf(immunityTicks), ProbeLog.fmt(quiet),
+                    expectedPool(state, madness)));
         }
 
-        s_hud = String.format(Locale.ROOT, "%s mad=%.2f man=%d imm=%s",
-                state, madness, maniaTicks, immunityTicks < 0 ? "-" : String.valueOf(immunityTicks));
+        // The warning-window quiet stretch suppresses the regular draw while it is above zero. A value that
+        // stays above zero while no warning window is open means the centre is reserved for a line that will
+        // never come - which is exactly what "no inner-voice line appears at all" looks like from outside.
+        String hold = quiet > 0f ? "hold" : "free";
+        if (!hold.equals(s_lastHold))
+        {
+            s_lastHold = hold;
+            ProbeLog.log("HINTWIN-28", String.format(Locale.ROOT,
+                    "quiet=%s quietValue=%s | window=%s | maniaTicks=%d | immunityTicks=%s | madness=%.3f",
+                    hold.toUpperCase(Locale.ROOT), ProbeLog.fmt(quiet), state, maniaTicks,
+                    immunityTicks < 0 ? "none" : String.valueOf(immunityTicks), madness));
+        }
+
+        // How long an extra inner-voice line actually stays on screen. Measured, not assumed: the on-screen
+        // window of these lines is a tuning value, and "it stays too long" was reported from a live session.
+        // One line per appearance, with the length only - never the text.
+        boolean his = hiddenVoiceOnScreen();
+        if (his && !s_hisOnScreen)
+        {
+            s_hisOnScreen = true;
+            s_hisTicks = 0;
+        }
+        else if (his)
+        {
+            s_hisTicks += 10;   // this probe runs every 10 ticks
+        }
+        else if (s_hisOnScreen)
+        {
+            s_hisOnScreen = false;
+            int ticks = s_hisTicks + 10;
+            ProbeLog.log("VOICE-32", String.format(Locale.ROOT,
+                    "his-line window closed after ~%d ticks (~%.1fs) => %s",
+                    ticks, ticks / 20f, ticks <= 160 ? "OK(short)" : "CHECK(still long)"));
+        }
+
+        s_hud = String.format(Locale.ROOT, "%s mad=%.2f man=%d imm=%s q=%s",
+                state, madness, maniaTicks, immunityTicks < 0 ? "-" : String.valueOf(immunityTicks),
+                quiet > 0f ? ProbeLog.fmt(quiet) : "-");
+    }
+
+    /** Whether one of the extra inner-voice lines is on screen right now, via reflection. */
+    private static boolean hiddenVoiceOnScreen()
+    {
+        try
+        {
+            Object gui = gui();
+            if (gui == null)
+                return false;
+
+            if (s_hiddenField == null)
+            {
+                s_hiddenField = gui.getClass().getDeclaredField("m_hintHiddenVoice");
+                s_hiddenField.setAccessible(true);
+            }
+
+            return s_hiddenField.getBoolean(gui);
+        }
+        catch (Throwable t)
+        {
+            return false;
+        }
+    }
+
+    /**
+     * Reads the warning-window quiet stretch of the centre-line renderer, via reflection.
+     *
+     * <p>The field is private and client-only, so this is the only way to observe it; the probe never writes
+     * to it. A non-zero value that does not drain is the failure this probe exists to catch.
+     */
+    private static float quietStretch()
+    {
+        try
+        {
+            Object gui = gui();
+            if (gui == null)
+                return 0f;
+
+            if (s_quietField == null)
+            {
+                s_quietField = gui.getClass().getDeclaredField("m_maniaHintQuiet");
+                s_quietField.setAccessible(true);
+            }
+
+            return s_quietField.getFloat(gui);
+        }
+        catch (Throwable t)
+        {
+            return 0f;
+        }
+    }
+
+    /**
+     * The client-side centre-line renderer, resolved once through {@code SanityMod#getInstance()/getGui()}.
+     *
+     * <p>Its interesting state (the warning quiet stretch, the extra-voice flag) is private, so reflection is
+     * the only way to observe it. The probe never writes to it.
+     */
+    private static Object gui()
+    {
+        try
+        {
+            if (s_gui == null)
+            {
+                Class<?> mod = Class.forName("piloser.sanitypd.SanityMod");
+                Object instance = mod.getMethod("getInstance").invoke(null);
+                s_gui = mod.getMethod("getGui").invoke(instance);
+            }
+
+            return s_gui;
+        }
+        catch (Throwable t)
+        {
+            return null;
+        }
     }
 
     /** Which display window the current numbers put the player in. */

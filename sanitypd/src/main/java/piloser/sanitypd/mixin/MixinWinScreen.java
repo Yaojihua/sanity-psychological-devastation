@@ -134,6 +134,19 @@ public abstract class MixinWinScreen
     @Inject(method = "addPoemFile(Ljava/io/Reader;)V", at = @At("RETURN"))
     private void sanitypd$appendThirdVoice(Reader reader, CallbackInfo ci)
     {
+        // Reaching this poem is the milestone that unlocks the extra inner-voice pool for the current save
+        // (see HiddenVoicePool): it writes a marker into the save folder, so the unlock survives a restart and
+        // never carries over to another save. Called before the guard below, because the milestone is "the
+        // poem is on screen", not "the lines could be appended". Failures are swallowed: an unwritable save
+        // folder must never be able to break the credits screen.
+        try
+        {
+            piloser.sanitypd.client.HiddenVoicePool.markPoemSeen();
+        }
+        catch (Throwable ignored)
+        {
+        }
+
         if (lines == null)
             return;
 

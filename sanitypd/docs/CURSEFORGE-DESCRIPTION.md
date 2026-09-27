@@ -75,7 +75,7 @@ FEATURES
 • Fully commented config: passive and active sources, item and block lists, multiplayer and client options.
 
 COMPANION TOOL: SanityPD PROBE (思维探针 / "Mind Probe")
-An optional, separate diagnostic mod (sanityprobe-mc1.20-2.9.0.jar). It changes nothing about the game and
+An optional, separate diagnostic mod (sanityprobe-mc1.20-2.11.2.jar). It changes nothing about the game and
 is not needed to play; it exists so client-side behaviour (rendering, HUD, animation) can be verified.
   • Install: drop the jar into mods/ next to the main mod. Delete it when done.
   • Read: <instance>/logs/sanityprobe.log (one tagged line per event) — also mirrored into latest.log as [PROBE].
@@ -155,7 +155,7 @@ CONTACT: https://github.com/Yaojihua/sanity-psychological-devastation
 • 配置文件每项都有注释：被动/主动来源、物品与方块列表、多人游戏与客户端选项。
 
 陪跑工具：SanityPD 思维探针（Mind Probe）
-可选的独立诊断模组（`sanityprobe-mc1.20-2.9.0.jar`）。**玩法不需要它**，也不改变任何游戏内容；
+可选的独立诊断模组（`sanityprobe-mc1.20-2.11.2.jar`）。**玩法不需要它**，也不改变任何游戏内容；
 它的意义是让"只有真实客户端才看得到的行为"（渲染 / HUD / 动画）可被验证。
   • 安装：把 jar 与主模组一起放进 `mods/`；用完删掉即可。
   • 看日志：`<实例>/logs/sanityprobe.log`（一行一件事、带标签），同时镜像到 `latest.log` 的 `[PROBE]` 行。
@@ -191,7 +191,7 @@ alpha 标注的含义就是这个。
 ## 发布前勾选清单
 
 - [ ] Release type 选 **Beta**（**不要选 Alpha**：Alpha 文件不会同步到 CurseForge App，玩家在 App 里搜不到）
-- [ ] 上传的文件：`sanitypd-mc1.20-1.1.1.jar`
+- [ ] 上传的文件：`sanitypd-mc1.20-1.3.3.jar`
 - [ ] 依赖里写明 **GeckoLib（必装，需与 Forge 版本搭配）**
 - [ ] 描述里保留**上游 croissantnova 的署名与 MIT 许可**（CurseForge 会检查）
 - [ ] 保留 **AI 辅助开发声明**
