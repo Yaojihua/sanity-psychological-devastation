@@ -16,7 +16,9 @@ and by saying whether the file was modified — the strings in section 2 are wri
 | `memory_charge.ogg` | Freesound | **LegoLunatic** | CC0 | allowed | not required |
 | `memory_tape_hiss.ogg` | 耳聆网 | **骨质人** | CC0 | allowed | not required |
 | `memory_tape_eject.ogg` | Freesound | **jpkweli** | CC0 | allowed | not required |
-| a horror sting — shipped file to confirm (candidate `insanity1.ogg`) | Freesound | **Taira Komori** | CC-BY | allowed | **required** |
+| `screaming_crawler_ambient.ogg` | Freesound | **Taira Komori** | CC-BY | allowed | **required** |
+| `screaming_crawler_roar.ogg` | Freesound | **TODO — look up** | **TODO** | **TODO** | per its license |
+| `screaming_crawler_explode.ogg` | Freesound | **TODO — look up** | **TODO** | **TODO** | per its license |
 | `insanity1.ogg`, `heartbeat.ogg`, `swish0-4.ogg`, `whoosh.ogg`, `leaves_rustle.ogg`, `screaming_crawler_*.ogg` | original project | toujourspareil, Zapsplat | Zapsplat standard license | per that license | yes — see `NOTICE-sanitypd.txt` |
 
 **In short:** the whole tape feature is CC0, so nothing is owed for it. The only attribution this mod
@@ -66,7 +68,11 @@ actually owes is one line for the horror sting.
 ### 恐怖 (horror sting) — CC-BY
 
 * By **Taira Komori**, via Freesound. The author's own page for the sound set is in the required attribution above.
-* ⚠️ **Which shipped file it became is not recorded** (candidate: `insanity1.ogg`). The licence is confirmed either way, and the attribution text above is already correct.
+* ✅ **Which shipped file it became — measured (2026-10-05): `screaming_crawler_ambient.ogg`.**
+  Envelope correlation against the source recording is **1.000 at zero offset**, with matching duration
+  (6.770 s against 6.768 s) and matching spectral centroid (8264 Hz against 8205 Hz).
+* Still to confirm on the source page: the **CC-BY version** (3.0 or 4.0). The attribution text above is
+  already complete and correct either way.
 
 ## 4. How the identifications were checked
 
@@ -79,14 +85,36 @@ best small time offset. A correlation near 1.000 means the same recording.
 | `memory_charge.ogg` ↔ explosion half of the same recording | r = +0.006 | unrelated |
 | `memory_charge.ogg` ↔ an unrelated horror sting in the source folder | r = +0.791 | not the same recording (similar envelope shape only) |
 
+A mapping is only accepted when **all three** agree: correlation at or above 0.98, duration within about
+half a second (or the shipped file being a clean excerpt of the longer one), and a matching spectral
+centroid. Envelope correlation alone is not enough — short, quiet, noise-like clips have almost flat
+envelopes, which correlate with anything.
+
+Accepted mappings:
+
+| Shipped file | Source recording | Correlation / offset | Duration | Centroid |
+|---|---|---|---|---|
+| `memory_charge.ogg` | the laser-charge recording | +1.000 @ 0 ms | 3.663 / 3.650 s | 1977 / 2022 Hz |
+| `memory_tape_hiss.ogg` | the blank-tape hiss recording | +0.998 @ 0 ms | 16.631 / 16.631 s | 8262 / 9488 Hz |
+| `memory_tape_eject.ogg` | the cassette-deck eject recording | +1.000 @ 0 ms | 0.569 / 0.550 s | 4733 / 4823 Hz |
+| `screaming_crawler_ambient.ogg` | the horror sting (Taira Komori) | +1.000 @ 0 ms | 6.770 / 6.768 s | 8264 / 8205 Hz |
+| `screaming_crawler_explode.ogg` | the explosion recording | +1.000 @ 0 ms | 10.143 / 10.141 s | 1810 / 1794 Hz |
+| `screaming_crawler_roar.ogg` | the monster-roar recording | +0.989 @ −350 ms | 10.950 / 11.973 s | 1542 / 1580 Hz |
+
+Not identified, and therefore still credited as inherited: `insanity1.ogg`, `heartbeat.ogg`,
+`leaves_rustle.ogg`, `swish0-4.ogg`, `whoosh.ogg` — nothing in the source folder matches them on all
+three criteria, so they are treated as coming from the original project.
+The scream recording in the source folder does not match any shipped file on all three criteria, so it
+appears to be unused.
+
 Reproduce with the comparison script kept in the project's tooling folder.
 
 ## 5. Still open
 
 | # | Item | Why it matters |
 |---|---|---|
-| 1 | The horror sting: which shipped file, and the CC-BY version | completeness only — the attribution text is already correct |
-| 2 | Three recordings in the source folder (a scream, a monster roar, an explosion, all from Freesound): author and licence, and whether they are used at all | if any of them is licensed **non-commercially**, it must be replaced before a release that earns revenue |
+| 1 | The horror sting: the **CC-BY version** only (its shipped file is now measured: `screaming_crawler_ambient.ogg`) | completeness — the attribution text is already correct |
+| 2 | Two recordings used by the crawler (`screaming_crawler_roar.ogg`, `screaming_crawler_explode.ogg`): author and licence. Both are from Freesound; the mapping to those files is measured and settled | if either is licensed **non-commercially**, it must be replaced before a release that earns revenue |
 | 3 | The inherited sounds: per-file origins | they are covered by the upstream attribution today; per-file detail would be better |
 | 4 | Any file found to be non-commercial | **blocker**: replace it before shipping a revenue-earning build |
 
