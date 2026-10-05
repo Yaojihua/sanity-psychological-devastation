@@ -81,6 +81,8 @@ memory-fragment tapes; both are described in full in [`sanitypd/README.md`](sani
   the final form. No date is promised for them.
 * **Not in:** the rest of the thought chain, and the rest of the story beyond the four fragments.
 
+* **Inspiration:** the tape presentation takes its visual language from the death screen of **Poppy Playtime**. No assets from that game are used - the effect is built entirely from this mod's own code and textures.
+
 ## Credits
 
 * Original project: **Sanity: Descent Into Madness** by **croissantnova** (MIT) — this mod's mechanics are

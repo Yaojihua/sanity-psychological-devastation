@@ -150,6 +150,7 @@ passive sanity drain. Sane players cannot see them — unless one has targeted t
   protects you.
 * Every fragment ships a **Chinese and an English script**, and the client language decides which plays.
 
+* **Inspiration:** the tape presentation takes its visual language from the death screen of **Poppy Playtime**. No assets from that game are used - the effect is built entirely from this mod's own code and textures.
 ## Roadmap
 
 This mod is **under active development** — the current build is the framework, not the finished game.
