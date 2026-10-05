@@ -21,6 +21,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PassiveBlocks implements IPassiveSanitySource
 {
+    /** Boosted by the "Nature Affinity" thought; see {@link IPassiveSanitySource#isNatureSoothed()}. */
+    @Override
+    public boolean isNatureSoothed()
+    {
+        return true;
+    }
+
     /** Expensive: scans every block in a cube (radius 4 gives 512 getBlockState calls per tick). */
     @Override
     public boolean isExpensive()

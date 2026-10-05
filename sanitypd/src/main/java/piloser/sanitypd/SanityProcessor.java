@@ -19,8 +19,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.TamableAnimal;
-import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -35,6 +35,17 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import piloser.sanitypd.thought.ThoughtChainProvider;
+import piloser.sanitypd.thought.ThoughtItem;
+import piloser.sanitypd.thought.ThoughtType;
+import piloser.sanitypd.thought.MindsetState;
+import piloser.sanitypd.thought.Mindsets;
+import piloser.sanitypd.thought.MindsetAttributes;
+import piloser.sanitypd.thought.ThoughtEffects;
+import piloser.sanitypd.thought.MadnessCombat;
+import piloser.sanitypd.thought.HintState;
+import piloser.sanitypd.combat.SanityCombat;
+import piloser.sanitypd.effect.EffectRegistry;
 
 public final class SanityProcessor
 {
@@ -71,6 +82,11 @@ public final class SanityProcessor
         ResourceLocation dim = player.level().dimension().location();
         float passive = 0;
 
+        // Nature Affinity: one factor for the four behaviours it names. Applying it per source is the same
+        // number as applying it to their sum once (multiplication distributes over addition), and it keeps the
+        // expensive sources' cached sum usable as-is.
+        float affinity = 1f + natureAffinityBonus(player);
+
         // Cheap sources (attribute / effect / position checks) are still evaluated every tick.
         for (IPassiveSanitySource pss : PASSIVE_SANITY_SOURCES)
         {
@@ -78,12 +94,17 @@ public final class SanityProcessor
                 continue;
 
             float val = pss.get(player, sanity, dim);
-            passive += val * getSanityMultiplier(player, val);
+            float scaled = val * getSanityMultiplier(player, val);
+
+            if (pss.isNatureSoothed() && val > 0f)
+                scaled *= affinity;
+
+            passive += scaled;
         }
 
         // Expensive sources (entity scans, line-of-sight rays, per-block volume scans) are throttled
         // and reuse a cache: the numbers are identical, just up to PASSIVE_SCAN_INTERVAL ticks stale.
-        passive += calcExpensivePassive(player, sanity, dim);
+        passive += calcExpensivePassive(player, sanity, dim, affinity);
 
         int garlandTimer = sanity instanceof Sanity s0 ? s0.getGarlandTimer() : 0;
         garlandTimer--;
@@ -92,9 +113,10 @@ public final class SanityProcessor
         {
             // TODO: unhardcode
             // Garland: grants 0.005 sanity points per tick (positive value = sanity gain).
-            passive += .005 * ConfigProxy.getPosMul(dim);
+            // Wearing it is one of the four behaviours Nature Affinity boosts, so the same factor applies.
+            passive += .005 * ConfigProxy.getPosMul(dim) * affinity;
             if (garlandTimer <= 0)
-                headItem.hurtAndBreak(player.isInWaterOrRain() ? 2 : 1, player, ent -> {});
+                wearGarland(player, headItem, sanity, player.isInWaterOrRain() ? 2 : 1);
         }
         if (garlandTimer <= 0)
             garlandTimer = MAX_GARLAND_TIMER;
@@ -111,10 +133,10 @@ public final class SanityProcessor
      * underfoot), so a cached value equals a fresh scan, only up to
      * {@link #PASSIVE_SCAN_INTERVAL} ticks stale.
      */
-    private static float calcExpensivePassive(ServerPlayer player, ISanity sanity, ResourceLocation dim)
+    private static float calcExpensivePassive(ServerPlayer player, ISanity sanity, ResourceLocation dim, float affinity)
     {
         if (!(sanity instanceof Sanity s))
-            return sumExpensivePassive(player, sanity, dim);
+            return sumExpensivePassive(player, sanity, dim, affinity);
 
         if (s.getPassiveScanTtl() > 0)
         {
@@ -122,13 +144,13 @@ public final class SanityProcessor
             return s.getPassiveScanCache();
         }
 
-        float sum = sumExpensivePassive(player, sanity, dim);
+        float sum = sumExpensivePassive(player, sanity, dim, affinity);
         s.setPassiveScanCache(sum);
         s.setPassiveScanTtl(PASSIVE_SCAN_INTERVAL);
         return sum;
     }
 
-    private static float sumExpensivePassive(ServerPlayer player, ISanity sanity, ResourceLocation dim)
+    private static float sumExpensivePassive(ServerPlayer player, ISanity sanity, ResourceLocation dim, float affinity)
     {
         float sum = 0;
 
@@ -138,7 +160,12 @@ public final class SanityProcessor
                 continue;
 
             float val = pss.get(player, sanity, dim);
-            sum += val * getSanityMultiplier(player, val);
+            float scaled = val * getSanityMultiplier(player, val);
+
+            if (pss.isNatureSoothed() && val > 0f)
+                scaled *= affinity;
+
+            sum += scaled;
         }
 
         return sum;
@@ -163,9 +190,54 @@ public final class SanityProcessor
                 dim -> itemStack.getFoodProperties(player).getNutrition() * ConfigProxy.getEating(dim));
     }
 
+    /**
+     * Wears the garland, at a quarter rate while the composure mindset is active.
+     *
+     * <p>"75% less wear" cannot be expressed as a whole point per wear tick without rounding: the base wear is
+     * 1 (2 in rain), and three quarters of one point is not a durability value. So the saving is kept as a
+     * fraction in the capability and paid out a whole point at a time, which makes the total exact over any
+     * number of ticks - and keeps rain from being rounded up to a full point every time.
+     *
+     * <p>The credit is dropped when the mindset is not active, so putting the thought back cannot release a
+     * banked fraction.
+     */
+    private static void wearGarland(ServerPlayer player, ItemStack garland, ISanity sanity, int amount)
+    {
+        if (!(sanity instanceof Sanity cap) || !MindsetState.isActive(player, Mindsets.COMPOSURE))
+        {
+            if (sanity instanceof Sanity idle)
+                idle.setGarlandWearCredit(0f);
+
+            garland.hurtAndBreak(amount, player, ent -> {});
+            return;
+        }
+
+        float credit = cap.getGarlandWearCredit() + amount * 0.25f;
+        int whole = (int) credit;
+        cap.setGarlandWearCredit(credit - whole);
+
+        if (whole > 0)
+            garland.hurtAndBreak(whole, player, ent -> {});
+    }
+
     public static float getGarlandMultiplier(ServerPlayer player)
     {
         return player.getItemBySlot(EquipmentSlot.HEAD).is(ItemRegistry.GARLAND.get()) ? .92f : 1.0f;
+    }
+
+    /**
+     * The "Nature Affinity" bonus for a player: 0 unless that thought sits in his chain and its composure
+     * count has reached a tier, otherwise 0.20 / 0.40 / 0.50 for 1 / 3 / 5 thoughts.
+     *
+     * <p>Read from the chain's contents, which are authoritative on the server. The tiers are the same ones the
+     * tooltip shows, so they are stated once here rather than repeated at each call site.
+     *
+     * <p>An item that carries no type (a tag entry added by a datapack) cannot reach a tier and is skipped
+     * instead of being cast: the chain accepts it, but only {@code ThoughtItem} declares an axis to count.
+     */
+    private static float natureAffinityBonus(ServerPlayer player)
+    {
+        return ThoughtEffects.tierValue(player, ItemRegistry.THOUGHT_NATURE_AFFINITY.get());
     }
 
     public static float getSanityMultiplier(ServerPlayer player, float value)
@@ -179,7 +251,30 @@ public final class SanityProcessor
         if (value == 0.0f)
             return;
 
-        sanity.setSanity(sanity.getSanity() + value * getSanityMultiplier(player, value));
+        float change = value * getSanityMultiplier(player, value);
+
+        // Depersonalization: a positive change may not take the player above their recovery ceiling. Losses
+        // are untouched on purpose, and so is a value that already sits above the ceiling (equipping the
+        // thought does not take sanity away, it only stops recovery).
+        if (change > 0.0f)
+            change = clampToRecoveryCeiling(sanity, player, change);
+
+        if (change == 0.0f)
+            return;
+
+        sanity.setSanity(sanity.getSanity() + change);
+    }
+
+    /**
+     * Caps a positive sanity change at the player's recovery ceiling.
+     *
+     * @return what may actually be applied: {@code 0} when the player is already at or above the ceiling
+     */
+    public static float clampToRecoveryCeiling(@NotNull ISanity sanity, @NotNull ServerPlayer player, float positive)
+    {
+        float ceiling = sanity.getMaxSanity() * ThoughtEffects.recoveryCeilingFraction(player);
+
+        return Math.min(positive, Math.max(0.0f, ceiling - sanity.getSanity()));
     }
 
     public static void tickPlayer(final ServerPlayer player)
@@ -191,13 +286,47 @@ public final class SanityProcessor
         {
             ResourceLocation dim = player.level().dimension().location();
 
+            // Composure mindset, refreshed once a tick so the capability never has to look the chain up in
+            // getMaxSanity() (which runs several times per tick) or inside the damage maths.
+            if (s instanceof Sanity sanityCap)
+            {
+                boolean composure = MindsetState.isActive(player, Mindsets.COMPOSURE);
+                sanityCap.setSanityCapBonus(composure ? 20f : 0f);
+
+                // Read after the cap is refreshed, so the "+20 points" counts towards the same half the screen
+                // and the HUD show. 0.15 is the flat bonus; the line above is what keeps the two consistent.
+                boolean aboveHalf = sanityCap.getSanity() > sanityCap.getMaxSanity() * 0.5f;
+                sanityCap.setPsychicResistBonus(composure && aboveHalf ? 0.15f : 0f);
+
+                // Attributes go through vanilla, so every other mod and the client's own movement agree with
+                // the server about the numbers. The call is idempotent, which is what makes it safe per tick.
+                boolean aboveEighty = sanityCap.getSanity() > sanityCap.getMaxSanity() * 0.8f;
+                boolean garlandWorn = player.getItemBySlot(EquipmentSlot.HEAD).is(ItemRegistry.GARLAND.get());
+
+                // Lucid Elation is granted by its own item rather than by a mindset, so it is read from the
+                // chain and is zero unless the item is in it, the sanity condition holds and a tier is reached.
+                boolean aboveSixty = sanityCap.getSanity()
+                        > sanityCap.getMaxSanity() * ThoughtEffects.sanityThreshold(ItemRegistry.THOUGHT_LUCID_ELATION.get());
+                float lucid = aboveSixty
+                        ? ThoughtEffects.tierValue(player, ItemRegistry.THOUGHT_LUCID_ELATION.get())
+                        : 0f;
+
+                MindsetAttributes.refresh(player, composure, aboveEighty, garlandWorn, lucid);
+                refreshMadness(player, sanityCap);
+            }
+
             float passive = calcPassive(player, s);
             float snapshot = s.getSanity();
-            // passive premultiplied so no need for SanityProcessor#addSanity
-            s.setSanity(s.getSanity() + passive);
+            // Passive is premultiplied, so it does not go through SanityProcessor#addSanity - but a positive
+            // gain still has to respect the recovery ceiling (Depersonalization), so it takes the same clamp.
+            // The amount reported to the HUD is what was actually applied, not what was intended: at the
+            // ceiling the "you are recovering" arrow must go away, otherwise the screen promises a gain the
+            // maths refuses.
+            float applied = passive > 0f ? clampToRecoveryCeiling(s, player, passive) : passive;
+            s.setSanity(s.getSanity() + applied);
             if (s instanceof IPassiveSanity ps)
             {
-                ps.setPassiveIncrease(snapshot != s.getSanity() ? passive : 0);
+                ps.setPassiveIncrease(snapshot != s.getSanity() ? applied : 0);
             }
             if (s instanceof IPersistentSanity ps)
             {
@@ -227,6 +356,85 @@ public final class SanityProcessor
                 shareSanity(player, (Sanity)s);
         });
         InnerEntitySpawner.trySpawnForPlayer(player);
+    }
+
+    /**
+     * Refreshes everything the madness mindset and its five thoughts grant, and applies the mindset's own
+     * sanity drain.
+     *
+     * <h2>Why the resistance is added rather than compared</h2>
+     * The madness bonus and the composure bonus share the one field the capability keeps for it, and the
+     * owner's rule is that unstipulated effects stack - so an active madness mindset adds its 20% on top of
+     * a composure mindset's 15%. (In practice the two need ten thoughts of two types at once, so this is
+     * mostly a guard against a future bug; adding is also the answer that cannot silently swallow one of
+     * them.)
+     *
+     * <h2>Why the drain is not routed through the normal multiplier</h2>
+     * The owner's wording is "equal to the darkness rate", and the darkness rate is whatever
+     * {@code sanity.passive.darkness} is set to. Reading that one value here - rather than hard-coding a
+     * number - is what keeps the two equal when a player edits the config. It is applied with the same
+     * negative multiplier every other sanity source uses, so standing in the dark with the mindset active
+     * costs both rates.
+     */
+    private static void refreshMadness(final ServerPlayer player, final Sanity sanityCap)
+    {
+        boolean madness = MindsetState.isActive(player, Mindsets.MADNESS);
+        boolean madnessLow = madness && sanityCap.getSanity() < sanityCap.getMaxSanity() * MindsetAttributes.MADNESS_LOW;
+
+        // Shared field with the composure mindset, so the two bonuses add instead of overwriting each other.
+        float resist = (madness ? MindsetAttributes.MADNESS_RESIST : 0f)
+                + (MindsetState.isActive(player, Mindsets.COMPOSURE)
+                        && sanityCap.getSanity() > sanityCap.getMaxSanity() * 0.5f ? 0.15f : 0f);
+        sanityCap.setPsychicResistBonus(Math.min(resist, 1f));
+
+        // Command Hallucination: the client reports whether a non-mild inner line is on screen, because that
+        // is decided by the client's own draw path (see HintState / HintStatePacket).
+        float hallucination = HintState.isNonMildHintOnScreen(player)
+                ? ThoughtEffects.tierValue(player, ItemRegistry.THOUGHT_COMMAND_HALLUCINATION.get())
+                : 0f;
+
+        // Psychomotor Agitation: very low sanity, or the mania damage already biting.
+        boolean maniaBiting = sanityCap.getManiaTicks() > SanityCombat.MANIA_GRACE_TICKS
+                && !player.hasEffect(piloser.sanitypd.effect.EffectRegistry.MANIA_IMMUNITY.get());
+        boolean agitated = sanityCap.getSanity() < sanityCap.getMaxSanity() * ThoughtEffects.AGITATION_SANITY
+                || maniaBiting;
+        float agitation = agitated
+                ? ThoughtEffects.tierValue(player, ItemRegistry.THOUGHT_PSYCHOMOTOR_AGITATION.get())
+                : 0f;
+
+        // Fight or Flight: one of two mutually exclusive states, or nothing at all above its threshold.
+        float[] fight = MadnessCombat.fightOrFlight(player, ThoughtEffects.isEquipped(
+                player, ItemRegistry.THOUGHT_FIGHT_OR_FLIGHT.get())
+                && sanityCap.getSanity() < sanityCap.getMaxSanity() * ThoughtEffects.FIGHT_OR_FLIGHT_SANITY);
+        float fightAttack = fight == null ? 0f : fight[0];
+        float fightSpeed = fight == null ? 0f : fight[1];
+
+        // Identification with the Aggressor is applied on the hit itself (it only pays out against the one
+        // entity that struck the player), so no attribute modifier is passed for it here.
+        // Instrumental Aggression is not madness-gated either: it pays out whenever it is in the chain.
+        float instrumental = ThoughtEffects.isEquipped(player, ItemRegistry.THOUGHT_INSTRUMENTAL_AGGRESSION.get())
+                ? ThoughtEffects.INSTRUMENTAL_AGGRESSION_BONUS
+                : 0f;
+
+        // Irritability: it raises the attack bonus the mania *effect* grants, so it pays out only while that
+        // effect is on the player. Gating on the effect (rather than on the madness mindset or the mania
+        // window) is the owner's wording: "the mania status effect's attack bonus is raised".
+        float irritability = player.hasEffect(piloser.sanitypd.effect.EffectRegistry.MANIA.get())
+                ? ThoughtEffects.tierValue(player, ItemRegistry.THOUGHT_IRRITABILITY.get())
+                : 0f;
+
+        MindsetAttributes.refreshMadness(player, madness, madnessLow, hallucination, 0f, fightAttack, fightSpeed,
+                agitation, instrumental, irritability);
+
+        if (madness && sanityCap.getSanity() < sanityCap.getMaxSanity() * MindsetAttributes.MADNESS_ABOVE)
+        {
+            ResourceLocation dim = player.level().dimension().location();
+            float drain = ConfigProxy.getDarkness(dim);
+
+            if (drain < 0f)
+                sanityCap.setSanity(sanityCap.getSanity() + drain * ConfigProxy.getNegMul(dim)
+                        * getGarlandMultiplier(player));
+        }
     }
 
     public static void tickLevel(final ServerLevel level)
@@ -340,8 +548,29 @@ public final class SanityProcessor
             if (player.isCreative() || player.isSpectator())
                 continue;
 
-            SanityProcessor.handleActiveSourceForPlayer(player, ActiveSanitySources.SLEEPING, ConfigProxy::getSleepingCooldown, ConfigProxy::getSleeping);
+            SanityProcessor.handleActiveSourceForPlayer(player, ActiveSanitySources.SLEEPING,
+                    ConfigProxy::getSleepingCooldown, dim -> sleepSanityFor(player, dim));
         }
+    }
+
+    /**
+     * How much sanity one sleep restores for this player, before any per-dimension multipliers.
+     *
+     * <p>Public so a self-check can assert the number without going through {@code handlePlayerSlept}, whose
+     * loop only visits players in the level's player list - a fake player is never in it, and the check would
+     * read a flat zero for reasons that have nothing to do with the thought (measured 2026-10-03).
+     *
+     * <p>Sleep Debt cuts it by its penalty. The reduction multiplies the amount rather than adding a second
+     * negative source, so the cooldown and the "was that a real sleep" bookkeeping are untouched - only the
+     * number the player gets is smaller.
+     */
+    public static float sleepSanityFor(ServerPlayer player, ResourceLocation dim)
+    {
+        float amount = ConfigProxy.getSleeping(dim);
+
+        return ThoughtEffects.isEquipped(player, ItemRegistry.THOUGHT_SLEEP_DEBT.get())
+                ? amount * (1f - ThoughtEffects.SLEEP_DEBT_PENALTY)
+                : amount;
     }
 
     public static void handlePlayerHurt(ServerPlayer player, float amount)
@@ -357,7 +586,15 @@ public final class SanityProcessor
         });
     }
 
-    public static void handlePlayerHurtAnimal(ServerPlayer player, Animal animal, float amount)
+    /**
+     * The "you hit a friendly creature" penalty.
+     *
+     * <p>The parameter is a {@link LivingEntity} rather than an {@code Animal} because "friendly" is wider
+     * than vanilla's Animal: villagers and wandering traders (both {@code AbstractVillager}) are peaceful
+     * too, and the Law of the Jungle thought names friendly creatures rather than animals. See
+     * {@code EventHandler#onLivingHurtAnimal}, which decides what reaches this method.
+     */
+    public static void handlePlayerHurtAnimal(ServerPlayer player, LivingEntity target, float amount)
     {
         if (player == null || player.isCreative() || player.isSpectator() || amount <= 0)
             return;
@@ -365,8 +602,14 @@ public final class SanityProcessor
         player.getCapability(SanityProvider.CAP).ifPresent(s ->
         {
             ResourceLocation dimLoc = player.level().dimension().location();
-            addSanity(s, amount * ConfigProxy.getAnimalHurtRatio(player.level().dimension().location()) * (animal.isBaby() ? 2.0f : 1.0f), player);
-//            s.setSanity(s.getSanity() + amount * ConfigProxy.getAnimalHurtRatio(player.level.dimension().location()) * (animal.isBaby() ? 2.0f : 1.0f));
+            // Law of the Jungle: while sanity is above half, this penalty is waived by the tier the chain has
+            // reached (20 / 40 / 60%). The penalty is a signed value, so the waiver multiplies it instead of
+            // subtracting from it - and a player who does not hold the thought is multiplied by exactly 1.
+            float waived = s.getSanity() > s.getMaxSanity() * ThoughtEffects.sanityThreshold(ItemRegistry.THOUGHT_LAW_OF_THE_JUNGLE.get())
+                    ? ThoughtEffects.tierValue(player, ItemRegistry.THOUGHT_LAW_OF_THE_JUNGLE.get())
+                    : 0f;
+
+            addSanity(s, amount * ConfigProxy.getAnimalHurtRatio(player.level().dimension().location()) * (target.isBaby() ? 2.0f : 1.0f) * (1f - waived), player);
         });
     }
 

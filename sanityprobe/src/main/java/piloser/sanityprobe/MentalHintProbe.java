@@ -183,16 +183,26 @@ public final class MentalHintProbe
         try
         {
             Class<?> providerClass = Class.forName("piloser.sanitypd.capability.SanityProvider");
-            Object capHolder = providerClass.getField("CAP").get(null);
-            Object cap = capHolder.getClass().getMethod("get").invoke(capHolder);
-            Object optional = cap.getClass()
-                    .getMethod("getCapability", net.minecraft.world.entity.Entity.class)
-                    .invoke(cap, mc.player);
+            // Fixed in v2.15.0: same bug ProbeImpactProbe had - a no-argument get() on SanityProvider.CAP,
+            // and then getCapability invoked ON the token instead of on the entity. 1.20.1 returns a Forge
+            // LazyOptional, so unwrap it with orElse(null); mirrors HintWindowProbe (proven on a real client).
+            Object token = providerClass.getField("CAP").get(null);
 
-            if (!(optional instanceof java.util.Optional<?> opt) || opt.isEmpty())
+            if (token == null)
                 return -1f;
 
-            Object sanity = opt.get();
+            Class<?> capabilityClass = Class.forName("net.minecraftforge.common.capabilities.Capability");
+            java.lang.reflect.Method getCapability =
+                    net.minecraft.world.entity.player.Player.class.getMethod("getCapability", capabilityClass);
+            Object holder = getCapability.invoke(mc.player, token);
+
+            if (holder == null)
+                return -1f;
+
+            Object sanity = holder.getClass().getMethod("orElse", Object.class).invoke(holder, (Object) null);
+
+            if (sanity == null)
+                return -1f;
             float s = (float) sanity.getClass().getMethod("getSanity").invoke(sanity);
             float m = (float) sanity.getClass().getMethod("getMaxSanity").invoke(sanity);
             return m <= 0f ? -1f : 1f - s / m;

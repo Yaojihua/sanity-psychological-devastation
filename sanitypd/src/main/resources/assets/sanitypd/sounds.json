@@ -3,13 +3,15 @@
 		"category": "ambient",
 		"sounds": [
 			"sanitypd:insanity1"
-		]
+		],
+		"subtitle": "subtitles.sanitypd.insanity"
 	},
 	"heartbeat": {
 		"category": "ambient",
 		"sounds": [
 			"sanitypd:heartbeat"
-		]
+		],
+		"subtitle": "subtitles.sanitypd.heartbeat"
 	},
 	"swish": {
 		"category": "ambient",
@@ -19,12 +21,14 @@
 			"sanitypd:swish2",
 			"sanitypd:swish3",
 			"sanitypd:swish4"
-		]
+		],
+		"subtitle": "subtitles.sanitypd.swish"
 	},
 	"flowers_equip": {
 		"sounds": [
 			"sanitypd:leaves_rustle"
-		]
+		],
+		"subtitle": "subtitles.sanitypd.flowers_equip"
 	},
 	"inner_entity_hurt": {
 		"sounds": [
@@ -58,5 +62,26 @@
 			"sanitypd:screaming_crawler_explode"
 		],
 		"subtitle": "subtitles.sanitypd.screaming_crawler_explode"
+	},
+	"memory_charge": {
+		"category": "player",
+		"sounds": [
+			"sanitypd:memory_charge"
+		],
+		"subtitle": "subtitles.sanitypd.memory_charge"
+	},
+	"memory_tape_hiss": {
+		"category": "ambient",
+		"sounds": [
+			"sanitypd:memory_tape_hiss"
+		],
+		"subtitle": "subtitles.sanitypd.memory_tape_hiss"
+	},
+	"memory_tape_eject": {
+		"category": "player",
+		"sounds": [
+			"sanitypd:memory_tape_eject"
+		],
+		"subtitle": "subtitles.sanitypd.memory_tape_eject"
 	}
 }

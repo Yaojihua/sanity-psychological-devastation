@@ -93,4 +93,21 @@ public interface ISanity extends ICompoundTagSerializable
         float max = getMaxSanity();
         return max <= 0f ? 0f : MathHelper.clampNorm(1f - getSanity() / max);
     }
+
+    /**
+     * Psychic resistance as the damage stage must see it: the stored value plus whatever the player's thought
+     * chain adds right now.
+     *
+     * <p>Deliberately a second method rather than a change to {@link #getPsychicResistance()}. That one is the
+     * value a debug command sets and reads back; folding a derived bonus into it would make
+     * {@code /sanity resist get} report a number nobody set, and would bake a temporary effect into the saved
+     * value if anything ever wrote it back.
+     *
+     * <p>The result may exceed 1.0. The stage that consumes it floors its own factor at zero, and the bonus is
+     * not clipped here: the whole point of dropping the old 80% clamp is that resistance keeps its full value.
+     */
+    default float getEffectivePsychicResistance()
+    {
+        return getPsychicResistance();
+    }
 }

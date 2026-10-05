@@ -53,9 +53,52 @@ public final class CreativeTabRegistry
                 output.accept(ItemRegistry.STABILIZER_A.get());
                 output.accept(ItemRegistry.STABILIZER_B.get());
                 output.accept(ItemRegistry.STABILIZER_C.get());
+                // Delta was registered at the end of ItemRegistry to keep the ids stable; the tab keeps the
+                // family in one place, which is where a player looks for it.
+                output.accept(ItemRegistry.STABILIZER_D.get());
                 // Macaron: one 3x3 recipe differs only in the dye, and all eight share one cooldown
                 for (RegistryObject<Item> macaron : ItemRegistry.MACARONS())
                     output.accept(macaron.get());
+                // Thought chain: the controller, then the betas grouped by row - worldviews
+                // first, then methodologies, so the tab reads like the screen does.
+                output.accept(ItemRegistry.PSYCHIC_CONTROLLER.get());
+                output.accept(ItemRegistry.THOUGHT_LAW_OF_THE_JUNGLE.get());
+                output.accept(ItemRegistry.THOUGHT_NATURE_AFFINITY.get());
+                output.accept(ItemRegistry.THOUGHT_LUCID_ELATION.get());
+                output.accept(ItemRegistry.THOUGHT_SOCIALIZATION.get());
+                output.accept(ItemRegistry.THOUGHT_DUPLICITY.get());
+                // Madness batch. ⚠️ A thought that is not listed here is invisible in the creative
+                // tab AND in JEI, because JEI builds its item list from the tab contents (this mod ships no
+                // JEI plugin). An earlier build shipped without these five lines, and the owner reported exactly that
+                // ("I cannot see a single new thought"). Registering an item is not the same as listing it.
+                // Order follows the composure group above: two worldviews, then three methodologies.
+                output.accept(ItemRegistry.THOUGHT_IDENTIFICATION_WITH_THE_AGGRESSOR.get());
+                output.accept(ItemRegistry.THOUGHT_FIGHT_OR_FLIGHT.get());
+                output.accept(ItemRegistry.THOUGHT_CATHARSIS.get());
+                output.accept(ItemRegistry.THOUGHT_COMMAND_HALLUCINATION.get());
+                output.accept(ItemRegistry.THOUGHT_PSYCHOMOTOR_AGITATION.get());
+                // Sleep debt (worldview) and instrumental aggression (methodology).
+                output.accept(ItemRegistry.THOUGHT_SLEEP_DEBT.get());
+                output.accept(ItemRegistry.THOUGHT_INSTRUMENTAL_AGGRESSION.get());
+                // Stress-induced analgesia (methodology/endurance), irritability
+                // (methodology/madness) and conversion disorder (worldview/servitude - the first servitude
+                // thought in the mod). Appended here as well as in ItemRegistry, for the same reason.
+                output.accept(ItemRegistry.THOUGHT_STRESS_INDUCED_ANALGESIA.get());
+                output.accept(ItemRegistry.THOUGHT_IRRITABILITY.get());
+                output.accept(ItemRegistry.THOUGHT_CONVERSION_DISORDER.get());
+                // The first chaos-restraint thought: appended here as well as in ItemRegistry, so its
+                // registry ids do not shift for anyone else.
+                output.accept(ItemRegistry.THOUGHT_DEPERSONALIZATION.get());
+                // Lost memory fragment (story item, part 1): registered at the end of ItemRegistry to keep
+                // the ids stable, and listed here because an unlisted item is invisible in the tab AND in
+                // JEI (see the warning above).
+                output.accept(ItemRegistry.LOST_MEMORY_FRAGMENT.get());
+                // The second memory fragment (the Nether one). Same reason as above for listing it here.
+                output.accept(ItemRegistry.LOST_MEMORY_FRAGMENT_NETHER.get());
+                // The third memory fragment (the End one), listed for the same reason.
+                output.accept(ItemRegistry.LOST_MEMORY_FRAGMENT_END.get());
+                // The final memory fragment, listed for the same reason.
+                output.accept(ItemRegistry.LOST_MEMORY_FRAGMENT_FINALE.get());
                 // Inner mob spawn egg trio
                 output.accept(ItemRegistry.ROTTING_STALKER_SPAWN_EGG.get());
                 output.accept(ItemRegistry.SNEAKING_TERROR_SPAWN_EGG.get());

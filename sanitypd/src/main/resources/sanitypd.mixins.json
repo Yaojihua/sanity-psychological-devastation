@@ -14,6 +14,8 @@
     "MixinJukeboxBlockEntity",
     "MixinPig",
     "MixinServerPlayerGameMode",
+    "MixinServerPlayerSeenCredits",
+    "MixinServerPlayerSleep",
     "MixinShearsItem",
     "MixinSheep",
     "MixinTemptGoal",

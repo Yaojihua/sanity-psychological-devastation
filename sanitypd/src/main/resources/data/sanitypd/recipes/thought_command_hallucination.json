@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gbg",
+    "fcf",
+    "gkg"
+  ],
+  "key": {
+    "b": { "item": "minecraft:note_block" },
+    "c": { "item": "sanitypd:inner_core" },
+    "f": { "item": "minecraft:feather" },
+    "g": { "item": "minecraft:glass" },
+    "k": { "item": "minecraft:book" }
+  },
+  "result": {
+    "item": "sanitypd:thought_command_hallucination",
+    "count": 1
+  }
+}

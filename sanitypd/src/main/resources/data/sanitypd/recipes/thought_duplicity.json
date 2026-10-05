@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gpg",
+    "dcd",
+    "gpg"
+  ],
+  "key": {
+    "c": { "item": "sanitypd:inner_core" },
+    "d": { "item": "minecraft:diamond" },
+    "g": { "item": "minecraft:glass" },
+    "p": { "item": "minecraft:ender_pearl" }
+  },
+  "result": {
+    "item": "sanitypd:thought_duplicity",
+    "count": 1
+  }
+}

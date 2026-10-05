@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "geg",
+    "ece",
+    "geg"
+  ],
+  "key": {
+    "c": { "item": "sanitypd:inner_core" },
+    "e": { "item": "minecraft:emerald" },
+    "g": { "item": "minecraft:glass" }
+  },
+  "result": {
+    "item": "sanitypd:thought_socialization",
+    "count": 1
+  }
+}

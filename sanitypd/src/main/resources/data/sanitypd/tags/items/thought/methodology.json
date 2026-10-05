@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "sanitypd:thought_socialization",
+    "sanitypd:thought_duplicity",
+    "sanitypd:thought_catharsis",
+    "sanitypd:thought_command_hallucination",
+    "sanitypd:thought_psychomotor_agitation",
+    "sanitypd:thought_instrumental_aggression",
+    "sanitypd:thought_stress_induced_analgesia",
+    "sanitypd:thought_irritability"
+  ]
+}

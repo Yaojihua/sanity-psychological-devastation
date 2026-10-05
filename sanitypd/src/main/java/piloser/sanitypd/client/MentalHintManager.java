@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import piloser.sanitypd.SanityMod;
 import piloser.sanitypd.capability.ISanity;
+import piloser.sanitypd.thought.TypeHintSpec;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -39,6 +40,13 @@ import java.util.Random;
  * <p>A separate pool ({@link HiddenVoicePool}) shares the <b>severe</b> tier's draw once the current save
  * has unlocked it. It lives outside the tier machinery on purpose: it is not a fourth tier, so the command
  * list never shows it, the commands cannot edit it, and the preview cannot draw it.
+ *
+ * <p>A second set of read-only pools ({@link TypeHintPools}, table in {@code TypeHintSpec}) shares a tier's
+ * draw per thought <b>type</b>: while the chain holds at least one thought of a type, that type's own lines
+ * join that tier's draw - composure the mild tier, madness / endurance / servitude / chaos restraint the
+ * severe one. They stay out of the tier machinery for the same reasons as the extra voice (never listed,
+ * never editable, a text repeating one of them is refused silently), and they only ever <i>mix into</i> a
+ * tier's candidate set: each type keeps its own pool.
  *
  * <p>The whole class is client-only ({@link OnlyIn}) because hints apply to the current save only,
  * so they are stored and rendered locally with no new network packet. Server code never references
@@ -311,13 +319,30 @@ public final class MentalHintManager
      *               {@link GuiHandler} uses it to reproduce the shake tied to specific default lines.
      * @param hidden whether the line came from the extra inner-voice pool ({@link HiddenVoicePool}). Such a
      *               line is drawn dark red, does not shake and triggers the cave sound.
+     * @param color  {@code 0xRRGGBB} draw colour, combined with the fade alpha by {@link GuiHandler}.
+     *               White everywhere except the extra voice and the chaos-restraint type pool.
+     * @param typeId id of the thought type whose pool this line came from, or {@code null} for every other
+     *               kind of line. Used for the {@code [HINT-TYPE]} log line, which is the only way a
+     *               real-machine session can show that a type pool was actually dealt.
      */
-    public record Pick(MutableComponent text, int id, boolean hidden)
+    public record Pick(MutableComponent text, int id, boolean hidden, int color, String typeId)
     {
-        /** A line from the visible pools. */
+        /** A line from the visible pools, drawn in the tier's normal white. */
         public Pick(MutableComponent text, int id)
         {
-            this(text, id, false);
+            this(text, id, false, 0xFFFFFF, null);
+        }
+
+        /** A line from the extra inner-voice pool: dark red, steady, with its own display window. */
+        public Pick(MutableComponent text, int id, boolean hidden)
+        {
+            this(text, id, hidden, hidden ? HiddenVoicePool.COLOR_DARK_RED : 0xFFFFFF, null);
+        }
+
+        /** Whether this line came from one of the per-type pools. */
+        public boolean fromTypePool()
+        {
+            return typeId != null && !typeId.isEmpty();
         }
     }
 
@@ -345,12 +370,21 @@ public final class MentalHintManager
      * warning windows, and the {@code /sanity hint show} preview - keeps using {@link #pickHint(int)}, so a
      * line from that pool can never surface through a command.
      */
+    /**
+     * Picks a line for the regular on-screen draw.
+     *
+     * <p>The difference from {@link #pickHint(int)} is the two read-only pools: the extra inner-voice pool,
+     * which only the severe tier sees and only while the current save has unlocked it, and the per-type pools
+     * of {@link TypeHintPools}, which join a tier while the chain holds a thought of their type. Every other
+     * caller - the deep and expiry warning windows, and the {@code /sanity hint show} preview - keeps using
+     * {@link #pickHint(int)}, so neither of those pools can surface through a command.
+     */
     public static Pick pickHintForDraw(int tier)
     {
         return pick(tier, true);
     }
 
-    private static Pick pick(int tier, boolean allowHiddenVoice)
+    private static Pick pick(int tier, boolean regularDraw)
     {
         if (!isValidTier(tier))
             return null;
@@ -359,11 +393,16 @@ public final class MentalHintManager
 
         MutableComponent[] pool = s_defaults[tier];
         List<String> custom = s_custom.get(tier);
-        List<String> hidden = allowHiddenVoice && tier == TIER_SEVERE
+        List<String> hidden = regularDraw && tier == TIER_SEVERE
                 ? HiddenVoicePool.eligibleLines(custom)
                 : Collections.emptyList();
+        // The per-type pools are read-only and only take part in the regular draw; the command preview and
+        // the two warning windows never see them (owner's rule: they must not be reachable from /sanity hint).
+        List<TypeHintPools.Line> types = regularDraw
+                ? TypeHintPools.activeLines(tier)
+                : Collections.emptyList();
 
-        int total = pool.length + custom.size() + hidden.size();
+        int total = pool.length + custom.size() + hidden.size() + types.size();
 
         if (total == 0)
             return null;
@@ -373,28 +412,36 @@ public final class MentalHintManager
         // the extra voice unheard for many minutes (measured in-game: two identical lines in a row, then a
         // six minute silence while only severe lines came up). Dealing without replacement fixes both: no
         // repeat until the whole pool has been used, and the share of every line is exactly one per round.
-        if (tier == TIER_SEVERE && allowHiddenVoice)
-            return dealSevereDraw(pool, custom, hidden);
+        // The type lines are dealt from that same bag on purpose: the owner asked for them to be mixed into
+        // the tier's pool, and the bag's source key includes them, so editing the chain rebuilds the bag.
+        if (tier == TIER_SEVERE && regularDraw)
+            return dealSevereDraw(pool, custom, hidden, types);
 
         int roll = RAND.nextInt(total);
 
         if (roll < pool.length)
         {
-            // Built-in line: resolve to a string and wrap it back into a literal, so what is drawn is
-            // guaranteed to be the resolved text.
-            return new Pick(Component.literal(resolveHintText(pool[roll])), roll, false);
+            // Built-in line: resolve to a string and build the drawable component from it, so what is drawn
+            // is guaranteed to be the resolved text (and any §k run becomes a real style).
+            return new Pick(TypeHintSpec.styled(resolveHintText(pool[roll])), roll, false, 0xFFFFFF, null);
         }
 
         roll -= pool.length;
 
         if (roll < custom.size())
-            return new Pick(Component.literal(custom.get(roll)), -1, false);
+            return new Pick(TypeHintSpec.styled(custom.get(roll)), -1, false, 0xFFFFFF, null);
 
-        return new Pick(Component.literal(hidden.get(roll - custom.size())), -1, true);
+        roll -= custom.size();
+
+        if (roll < hidden.size())
+            return new Pick(TypeHintSpec.styled(hidden.get(roll)), -1, true, HiddenVoicePool.COLOR_DARK_RED, null);
+
+        TypeHintPools.Line line = types.get(roll - hidden.size());
+        return new Pick(TypeHintSpec.styled(line.text()), -1, false, line.color(), line.type().id());
     }
 
     /** One line waiting to be dealt by {@link #dealSevereDraw}: the drawn text plus where it came from. */
-    private record Candidate(String text, int id, boolean hidden) {}
+    private record Candidate(String text, int id, boolean hidden, int color, String typeId) {}
 
     /** Lines still to be dealt for the severe draw, the candidate set they were built from, and the last one dealt. */
     private static final Deque<Candidate> s_severeBag = new ArrayDeque<>();
@@ -414,18 +461,22 @@ public final class MentalHintManager
      * unlocked or locked, the player name resolved differently, the language switched), and the line dealt
      * last is kept away from the front of a fresh bag so a rebuild cannot repeat it back to back.
      */
-    private static Pick dealSevereDraw(MutableComponent[] pool, List<String> custom, List<String> hidden)
+    private static Pick dealSevereDraw(MutableComponent[] pool, List<String> custom, List<String> hidden,
+            List<TypeHintPools.Line> types)
     {
-        List<Candidate> candidates = new ArrayList<>(pool.length + custom.size() + hidden.size());
+        List<Candidate> candidates = new ArrayList<>(pool.length + custom.size() + hidden.size() + types.size());
 
         for (int i = 0; i < pool.length; i++)
-            candidates.add(new Candidate(resolveHintText(pool[i]), i, false));
+            candidates.add(new Candidate(resolveHintText(pool[i]), i, false, 0xFFFFFF, null));
 
         for (String text : custom)
-            candidates.add(new Candidate(text, -1, false));
+            candidates.add(new Candidate(text, -1, false, 0xFFFFFF, null));
 
         for (String text : hidden)
-            candidates.add(new Candidate(text, -1, true));
+            candidates.add(new Candidate(text, -1, true, HiddenVoicePool.COLOR_DARK_RED, null));
+
+        for (TypeHintPools.Line line : types)
+            candidates.add(new Candidate(line.text(), -1, false, line.color(), line.type().id()));
 
         if (candidates.isEmpty())
             return null;
@@ -454,31 +505,26 @@ public final class MentalHintManager
         Candidate dealt = s_severeBag.poll();
         s_severeLastDealt = dealt.text();
 
-        return new Pick(Component.literal(dealt.text()), dealt.id(), dealt.hidden());
+        return new Pick(TypeHintSpec.styled(dealt.text()), dealt.id(), dealt.hidden(), dealt.color(), dealt.typeId());
     }
 
     /**
      * Resolves a built-in line into the string that will actually be drawn.
      *
-     * <p>Some lang values contain a {@code %s} player-name placeholder, and calling only
-     * {@code getString()} would leave the raw {@code %s} on screen, so the placeholder is replaced
+     * <p>Some lang values contain a player-name placeholder - {@code {player}} (the spelling the extra voice,
+     * the title screen and the type pools use) or the legacy {@code %s} of the three madness tiers - and
+     * calling only {@code getString()} would leave the raw placeholder on screen, so it is replaced
      * explicitly. The replacement is a plain string operation rather than
      * {@code Component.translatable(key, name)}: the latter runs the whole translation through
      * {@code String.format}, where a bare {@code %} in a line would throw
-     * {@code UnknownFormatConversionException} and make the line disappear entirely.
+     * {@code UnknownFormatConversionException} and make the line disappear entirely. Sharing the
+     * implementation with the type pools ({@link TypeHintSpec#fill}) keeps one rule for both.
      */
-    private static String resolveHintText(MutableComponent source)
+    public static String resolveHintText(MutableComponent source)
     {
         try
         {
-            String resolved = source.getString();
-
-            // Only a leftover "%s" after resolution means the value is a placeholder template.
-            // Deliberately avoid Component.translatable(key, name).getString() here: that runs the
-            // whole translation through String.format, so a bare "%" in a line would throw
-            // UnknownFormatConversionException and lose the entire line. A plain substring
-            // replacement only matches "%s" and cannot fail that way.
-            return resolved.indexOf("%s") >= 0 ? resolved.replace("%s", playerName()) : resolved;
+            return TypeHintSpec.fill(source.getString(), playerName());
         }
         catch (Throwable t)
         {
@@ -526,10 +572,12 @@ public final class MentalHintManager
         private static final AddResult ADDED = new AddResult(null, false);
 
         /**
-         * The line repeats a built-in line of the extra inner-voice pool.
+         * The line repeats a built-in line of a read-only pool: the extra inner-voice pool or one of the
+         * per-type pools ({@link TypeHintPools}).
          *
          * <p>Refused without a message on purpose (see {@link HiddenVoicePool}): the point is that the same
-         * sentence never ends up in a pool twice, not to advertise that the pool exists.
+         * sentence never ends up in a pool twice, not to advertise that those pools exist. The owner asked
+         * for the type pools to be unmodifiable, so "the edit is silently cancelled" is the whole answer.
          */
         public static final AddResult SILENT = new AddResult(null, true);
 
@@ -549,8 +597,9 @@ public final class MentalHintManager
             return AddResult.error("commands.sanity.hint.empty");
 
         // Checked before the length and duplicate rules, and answered with silence: a text that repeats one of
-        // the extra inner-voice lines is not a player error worth explaining.
-        if (HiddenVoicePool.matchesForbiddenText(text))
+        // the extra inner-voice lines, or one of the per-type lines, is not a player error worth explaining -
+        // and answering at all would advertise pools the owner wants unreachable from the command.
+        if (HiddenVoicePool.matchesForbiddenText(text) || TypeHintPools.matchesForbiddenText(text))
             return AddResult.SILENT;
 
         if (text.length() > MAX_HINT_LENGTH)

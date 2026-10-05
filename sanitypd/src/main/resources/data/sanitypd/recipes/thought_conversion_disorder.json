@@ -1,0 +1,40 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gtg",
+    "hcd",
+    "gag"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "t": {
+      "item": "sanitypd:inner_clump"
+    },
+    "h": {
+      "type": "sanitypd:potion",
+      "potions": [
+        "minecraft:healing",
+        "minecraft:strong_healing"
+      ]
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    },
+    "d": {
+      "type": "sanitypd:potion",
+      "potions": [
+        "minecraft:harming",
+        "minecraft:strong_harming"
+      ]
+    },
+    "a": {
+      "item": "minecraft:amethyst_shard"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_conversion_disorder",
+    "count": 1
+  }
+}

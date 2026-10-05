@@ -33,7 +33,7 @@ public final class ShadowRefinement
     /**
      * Max levels gained in one anvil operation, set by the <b>vanilla</b> anvil hard limit: the anvil refuses
      * to hand out a result whose cost reaches 40 ("Too Expensive!"), so a bulk operation is clamped here to
-     * stay takeable. This is vanilla behaviour and is deliberately <b>not</b> overridden (round 28: a forced
+     * stay takeable. This is vanilla behaviour and is deliberately <b>not</b> overridden (a forced
      * pickup was tried and reverted as a compatibility risk); more levels need several operations, each
      * costing 1 experience per level with no penalty.
      */

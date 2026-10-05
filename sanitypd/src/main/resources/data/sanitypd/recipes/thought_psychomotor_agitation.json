@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gpg",
+    "scs",
+    "gig"
+  ],
+  "key": {
+    "c": { "item": "sanitypd:inner_core" },
+    "g": { "item": "minecraft:glass" },
+    "i": { "item": "minecraft:iron_sword" },
+    "p": {
+      "type": "sanitypd:potion",
+      "potions": [
+        "minecraft:swiftness",
+        "minecraft:long_swiftness",
+        "minecraft:strong_swiftness"
+      ]
+    },
+    "s": { "item": "minecraft:shield" }
+  },
+  "result": {
+    "item": "sanitypd:thought_psychomotor_agitation",
+    "count": 1
+  }
+}

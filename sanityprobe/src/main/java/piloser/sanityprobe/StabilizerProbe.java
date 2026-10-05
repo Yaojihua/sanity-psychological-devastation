@@ -35,7 +35,9 @@ import java.util.Map;
 @Mod.EventBusSubscriber(modid = SanityProbe.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class StabilizerProbe
 {
-    private static final String[] ITEM_FIELDS = { "STABILIZER_A", "STABILIZER_B", "STABILIZER_C" };
+    // STABILIZER_D (the delta mood stabilizer, delivered as 1.5.0) was missing from v2.14.0, so the
+    // probe could not see the item at all - that build shipped without any probe coverage for it.
+    private static final String[] ITEM_FIELDS = { "STABILIZER_A", "STABILIZER_B", "STABILIZER_C", "STABILIZER_D" };
     private static final String[] EFFECT_FIELDS = { "MANIA_IMMUNITY", "INNER_IMMUNITY" };
 
     /** Item path to whether it was on cooldown last time. */

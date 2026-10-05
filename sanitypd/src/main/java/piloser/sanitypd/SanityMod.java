@@ -22,6 +22,10 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
+import net.minecraft.client.gui.screens.MenuScreens;
+import piloser.sanitypd.client.ThoughtChainScreen;
+import piloser.sanitypd.thought.ThoughtChainMenus;
+import piloser.sanitypd.client.ThoughtTooltips;
 
 @Mod(SanityMod.MODID)
 public class SanityMod
@@ -52,10 +56,15 @@ public class SanityMod
         ItemRegistry.register(modEventBus);
         CreativeTabRegistry.register(modEventBus);
         SoundRegistry.register(modEventBus);
+        ThoughtChainMenus.register(modEventBus);
         // Damage types are not registered here: damage_type is a pure datapack registry supplied by
         // data/sanitypd/damage_type/*.json
         EffectRegistry.EFFECTS.register(modEventBus);
         SanityEnchantments.ENCHANTMENTS.register(modEventBus);
+        // The two potion recipes need an ingredient that matches "any variant of this potion"; see
+        // PotionIngredient for why no built-in ingredient can express that, and for why an ingredient
+        // serializer is registered from a RegisterEvent rather than through a DeferredRegister.
+        modEventBus.addListener(piloser.sanitypd.recipe.PotionIngredient::register);
     }
 
     static
@@ -75,6 +84,18 @@ public class SanityMod
         // Mental hints (three tiers plus a player-defined pool): build the default pool and load the
         // local custom pool
         piloser.sanitypd.client.MentalHintManager.onClientSetup();
+
+        // The screen for the thought chain menu. Registered here rather than in a lambda-free static
+        // block because MenuScreens only exists on a physical client, and this method only runs there.
+        MenuScreens.register(ThoughtChainMenus.THOUGHT_CHAIN.get(), ThoughtChainScreen::new);
+
+        // Thought tooltips: an event handler rather than Item#appendHoverText, because item classes are loaded
+        // on a dedicated server too and may not name client types (see ThoughtTooltips).
+        MinecraftForge.EVENT_BUS.register(new ThoughtTooltips());
+
+        // Reports the on-screen inner line to the server, which is what lets the Command Hallucination
+        // thought grant its attack bonus there (see HintStateReporter).
+        MinecraftForge.EVENT_BUS.register(piloser.sanitypd.client.HintStateReporter.class);
 
         initGui();
         //EntityRenderers.register(EntityRegistry.SHADE_CHOMPER.get(), RendererShadeChomper::new);

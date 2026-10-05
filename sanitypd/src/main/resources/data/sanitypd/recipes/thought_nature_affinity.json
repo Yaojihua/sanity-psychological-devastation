@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "sanitypd:inner_core"
+    },
+    {
+      "item": "minecraft:campfire"
+    },
+    {
+      "item": "sanitypd:garland"
+    }
+  ],
+  "result": {
+    "item": "sanitypd:thought_nature_affinity",
+    "count": 1
+  }
+}

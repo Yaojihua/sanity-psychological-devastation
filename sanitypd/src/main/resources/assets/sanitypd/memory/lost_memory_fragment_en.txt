@@ -1,0 +1,19 @@
+“......{player}?”
+“■■■■, what's the matter?”
+“You are a mighty being...... the master of the world”
+“And then?”
+“But why do you remain silent?”
+“You act, you create, you hunt or are hunted”
+“And yet even death never makes you speak, why is that?”
+“In your eyes, have I never spoken a word?”
+“......I can see you, and yet I can only see you”
+“Haha, did you really think I had no mouth?”
+“■■■■, we are beings beyond your reach, to be honest......”
+“Language is one of the primary ways we convey information”
+“Perhaps you simply ‘cannot see’ it, rather than it ‘not existing’”
+“But at least you can see my mind, right?”
+“......True, the voice within is the only way I can perceive you”
+“You seem afraid that we will speak your name ‘within our mind’”
+“As though that would torment you forever”
+“That is not what I meant......{player}”
+“In truth, {player}, I merely do not want to look like ■■■ and ■■■ in your eyes, that would ■■■”

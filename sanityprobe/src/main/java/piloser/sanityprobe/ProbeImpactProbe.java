@@ -145,19 +145,34 @@ public final class ProbeImpactProbe
         if (!isInner(attacker))
             return;
 
-        // Psychic hits are [IMPACT-24]'s job; this path only handles physical melee
-        if (isPsychic(source))
+        // Only a genuine vanilla melee attack is the phenomenon this group judges.
+        //
+        // The first version filtered only "not psychic", which let the mod's OWN damage types through: the
+        // psychic_overflow true damage that the overflow conversion deals at the end of the tick also has an
+        // inner entity as its source, so the probe read its own consequence as a fresh melee - and, because
+        // it used to trigger the bonus for real, it manufactured a new psychic hit every tick. The loop was
+        // self-sustaining (2.0 psychic -> 1.6 true damage -> a new "melee" next tick) and killed the owner's
+        // player in half a second on 2026-10-04 (11 hits in 11 ticks, 6 626 241 B / 1.5.1 build).
+        // A whitelist of the vanilla melee types cannot match any of this mod's damage types.
+        if (!source.is(net.minecraft.world.damagesource.DamageTypes.MOB_ATTACK)
+                && !source.is(net.minecraft.world.damagesource.DamageTypes.MOB_ATTACK_NO_AGGRO))
             return;
 
         Cap cap = readCap(target);
         float ratio = (cap == null || cap.max <= 0f) ? -1f : cap.sanity / cap.max;
         float expected = ratio < 0f ? 0f : (ratio <= .01f ? .25f : (ratio <= .10f ? .10f : 0f));
 
-        // Zero side effects: the bonus really drains sanity, so the trigger plus before/after
-        // comparison runs for real players only, and only when the bonus is actually expected
-        // (expected > 0) - otherwise it would drain sanity for nothing.
-        // Other targets (mobs, animals) get a read-only verdict and nothing is triggered.
-        boolean mayTrigger = expected > 0f && target instanceof net.minecraft.server.level.ServerPlayer;
+        // Zero side effects ON A PLAYER, always.
+        //
+        // The trigger below really calls the main mod's applyInnerAttackerBonus, which deals psychic damage -
+        // so running it against a real player is the instrument injuring the test subject. It now happens
+        // only on non-player targets (a mob the inner entity is meleeing), where a few points of damage are
+        // harmless and the end-to-end verdict is still real.
+        //
+        // (The comment this replaces claimed the opposite of what the code did: it said other targets get a
+        // read-only verdict and are never triggered, while "players only, when expected > 0" was the actual
+        // condition - i.e. exactly the dangerous way round.)
+        boolean mayTrigger = expected > 0f && !(target instanceof net.minecraft.server.level.ServerPlayer);
 
         int before = meleeBonusCount();
         int after = before;
@@ -170,7 +185,9 @@ public final class ProbeImpactProbe
 
         String verdict;
         if (!mayTrigger)
-            verdict = expected > 0f ? "READONLY(non-player target, read-only verdict)" : "SKIPPED(not applicable by rule)";
+            verdict = expected > 0f
+                    ? "READONLY(player target: the probe must not deal damage to the owner)"
+                    : "SKIPPED(not applicable by rule)";
         else if (after > before)
             verdict = "ADDED(extra psychic damage was really applied)";
         else
@@ -389,19 +406,39 @@ public final class ProbeImpactProbe
     /** What was reflected out of the main mod's capability: sanity, max sanity and resistance. */
     private record Cap(float sanity, float max, float resist) {}
 
+    /** Set once so a broken capability read announces itself instead of printing -1.00 forever. */
+    private static boolean s_capFailureLogged;
+
     private static Cap readCap(LivingEntity entity)
     {
         try
         {
             Class<?> providerClass = Class.forName("piloser.sanitypd.capability.SanityProvider");
-            Object capHolder = providerClass.getField("CAP").get(null);
-            Object cap = capHolder.getClass().getMethod("get").invoke(capHolder);
-            Object optional = cap.getClass().getMethod("getCapability", Entity.class).invoke(cap, entity);
+            // Fixed in v2.15.0: this had the exact bug SneakHudProbe fixed in v2.13.0 - it called a
+            // no-argument get() on SanityProvider.CAP. CAP is the Capability token itself, and the method
+            // that turns a token plus an entity into an ISanity lives on the entity. Every call threw,
+            // readCap returned null, and the IMPACT/MELEE lines printed the -1.00 sentinel forever.
+            Object token = providerClass.getField("CAP").get(null);
 
-            if (!(optional instanceof java.util.Optional<?> opt) || opt.isEmpty())
+            if (token == null)
                 return null;
 
-            Object sanity = opt.get();
+            // Fixed in v2.15.0 (second pass): 1.20.1 hands back a Forge LazyOptional from getCapability,
+            // not a java.util.Optional, and the method resolves against the Capability INTERFACE. This is
+            // the shape HintWindowProbe uses, and that one is proven: it prints a real sanity percentage in
+            // the owner log. Resolving against token.getClass() and testing for java.util.Optional both
+            // yielded null here - which is exactly the -1.00 this fix exists to remove.
+            Class<?> capabilityClass = Class.forName("net.minecraftforge.common.capabilities.Capability");
+            java.lang.reflect.Method getCapability = entity.getClass().getMethod("getCapability", capabilityClass);
+            Object holder = getCapability.invoke(entity, token);
+
+            if (holder == null)
+                return null;
+
+            Object sanity = holder.getClass().getMethod("orElse", Object.class).invoke(holder, (Object) null);
+
+            if (sanity == null)
+                return null;
             float s = (float) sanity.getClass().getMethod("getSanity").invoke(sanity);
             float m = (float) sanity.getClass().getMethod("getMaxSanity").invoke(sanity);
             float r = (float) sanity.getClass().getMethod("getPsychicResistance").invoke(sanity);
@@ -409,6 +446,14 @@ public final class ProbeImpactProbe
         }
         catch (Throwable t)
         {
+            // A failed capability read must never be silently reported as a clean -1.00: say it once.
+            if (!s_capFailureLogged)
+            {
+                s_capFailureLogged = true;
+                ProbeLog.log("IMPACT-24", "readCap FAILED (sanity will show -1.00): "
+                        + t.getClass().getSimpleName() + " " + t.getMessage());
+            }
+
             return null;
         }
     }

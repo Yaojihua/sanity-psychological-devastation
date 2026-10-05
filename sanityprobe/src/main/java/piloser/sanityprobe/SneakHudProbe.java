@@ -64,6 +64,15 @@ public final class SneakHudProbe
      * Resolves the sanity capability that sanitypd registers, by reflection.
      * On failure the exception type and message are logged: a failed lookup must never be
      * reported as a clean result, or an untested path would look like a passing one.
+     *
+     * <p><b>Fixed in v2.13.0.</b> This used to read {@code SanityProvider.CAP} and then call a no-argument
+     * {@code get()} on it, expecting a capability <b>provider</b>. It is not one: {@code CAP} is the
+     * {@code Capability} token itself, and the method that turns a token plus an entity into an
+     * {@code ISanity} lives on the entity. The lookup therefore threw
+     * {@code NoSuchMethodException: net.minecraftforge.common.capabilities.Capability.get()} on every
+     * sneak, which the catch below dutifully logged - 121 lines of it in one of the owner's sessions,
+     * enough to bury latest.log. Every other probe in this project already passes the token to
+     * {@code getCapability}; this one now does the same.
      */
     private static Object sanityCapability(Minecraft mc)
     {
@@ -72,23 +81,39 @@ public final class SneakHudProbe
             if (s_lookup == null)
             {
                 Class<?> provider = Class.forName("piloser.sanitypd.capability.SanityProvider");
-                Object cap = provider.getField("CAP").get(null);
-                Method get = cap.getClass().getMethod("get");
-                s_lookup = get.invoke(cap);
-                ProbeLog.log("SNEAK-HUD", "capability lookup resolved: " + s_lookup);
+                // The capability token, not a provider: it is handed to getCapability below.
+                s_lookup = provider.getField("CAP").get(null);
+                ProbeLog.log("SNEAK-HUD", "capability token resolved: "
+                        + (s_lookup == null ? "null" : s_lookup.getClass().getName()));
             }
 
-            Method m;
+            if (s_lookup == null)
+            {
+                ProbeLog.log("SNEAK-HUD", "capability token is null (sanitypd not present?)");
+                return null;
+            }
+
+            // The token is the receiver's own class, so the method is resolved against it rather than
+            // against a guessed signature: that is what makes this work both in a development runtime and
+            // in a remapped one, where the parameter type of getCapability differs.
+            Object receiver = mc.player == null ? null : mc.player;
+
+            if (receiver == null)
+                return null;
+
+            Method getCapability;
+
             try
             {
-                m = s_lookup.getClass().getMethod("getCapability", net.minecraft.world.entity.Entity.class);
+                getCapability = receiver.getClass().getMethod("getCapability", s_lookup.getClass());
             }
             catch (NoSuchMethodException e)
             {
-                m = s_lookup.getClass().getMethod("getCapability", Object.class);
+                // Erased fallback: the argument is compiled as Object in some mappings.
+                getCapability = receiver.getClass().getMethod("getCapability", Object.class);
             }
 
-            Object result = m.invoke(s_lookup, mc.player);
+            Object result = getCapability.invoke(receiver, s_lookup);
 
             if (result instanceof java.util.Optional<?> opt)
                 return opt.orElse(null);

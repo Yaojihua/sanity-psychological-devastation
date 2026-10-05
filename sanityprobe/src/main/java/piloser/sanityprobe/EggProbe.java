@@ -6,6 +6,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SpawnEggItem;
+import net.minecraftforge.common.ForgeSpawnEggItem;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -19,7 +20,7 @@ import java.util.Map;
  * Group S (server side): the three inner-mob spawn eggs (probe v1.3.0).
  *
  * <p>A dedicated server can only answer part of the question. Item registration,
- * {@code SpawnEggItem.byId} reverse lookup, dispenser behaviour and lang key presence are
+ * {@code ForgeSpawnEggItem.fromEntityType} reverse lookup, dispenser behaviour and lang key presence are
  * assertable; what the icon looks like, whether the tint recolours the texture and whether the
  * name renders as a raw key are not — those need a real client. One client launch therefore
  * leaves a written verdict on whether the three eggs work and are named correctly.
@@ -28,7 +29,8 @@ import java.util.Map;
  * <pre>
  *   [EGG-25]  models/item/&lt;id&gt;.json + item texture present in the jar (missing -> purple/black)
  *   [EGG-25]  lang keys (zh_cn + en_us) and the rendered name width (a raw key is wider)
- *   [EGG-25]  SpawnEggItem.byId(entityType) reverse lookup, EXT-OK / EXT-MISSING, VERDICT line
+ *   [EGG-25]  ForgeSpawnEggItem.fromEntityType(entityType) reverse lookup, EXT-OK / EXT-MISSING, VERDICT line
+ *             (vanilla SpawnEggItem.byId cannot see Forge eggs - see the comment in report())
  * </pre>
  *
  * <p>Read-only: registers no gameplay content, changes no values, all entry points guarded.
@@ -88,7 +90,15 @@ public final class EggProbe
             boolean isEgg = item instanceof SpawnEggItem;
 
             // Reverse lookup: EntityType -> egg. If this link is broken the egg does nothing.
-            SpawnEggItem back = type == null ? null : SpawnEggItem.byId(type);
+            //
+            // This must go through ForgeSpawnEggItem.fromEntityType, NOT vanilla SpawnEggItem.byId.
+            // javap on the mapped 1.20 jar: ForgeSpawnEggItem.<init> passes aconst_null as the
+            // EntityType to SpawnEggItem.<init>, and vanilla SpawnEggItem.<init> only runs
+            // BY_ID.put(...) when that argument is non-null. So vanilla byId() is permanently null
+            // for every Forge egg, which made this check a false negative: the log showed
+            // VERDICT=SUSPECT eggs_ok=0/3 while item/type/isSpawnEgg/model/texture/lang were all true.
+            // ForgeSpawnEggItem.fromEntityType reads Forge's own TYPE_MAP and only falls back to byId.
+            SpawnEggItem back = type == null ? null : ForgeSpawnEggItem.fromEntityType(type);
             boolean byIdOk = back == item;
 
             // Jar resources: model + texture. Check them through the classloader, not the server-side ResourceManager.

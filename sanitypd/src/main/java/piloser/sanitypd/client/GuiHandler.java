@@ -12,6 +12,7 @@ import piloser.sanitypd.config.ConfigProxy;
 import piloser.sanitypd.config.SanityIndicatorLocation;
 import piloser.sanitypd.effect.EffectRegistry;
 import piloser.sanitypd.sound.SwishSoundInstance;
+import piloser.sanitypd.thought.ThoughtEffects;
 import piloser.sanitypd.util.MathHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -265,6 +266,9 @@ public class GuiHandler
     private boolean m_centreStatusForced;
     /** Alpha (0..255) used by the last centre-line text call, reported by {@link #logCentreStatus}. */
     private int m_lastOpacity = -1;
+
+    /** Last colour the sneak HUD printed for the sanity value, so a state change is logged exactly once. */
+    private int m_lastSanityValueColour = 0xFFFFFF;
     /**
      * Quiet timer shared by the two warning windows (ticks): the previous line retires
      * {@link #WARNING_LINE_LEAD_TICKS} before the warning, and nothing else is drawn for
@@ -559,6 +563,33 @@ public class GuiHandler
     }
 
     /**
+     * Colour of the sanity value above the gauge: grey-red while the value sits at the recovery ceiling, plain
+     * white otherwise.
+     *
+     * <p>A grey red rather than a bright one on purpose - bright red already means "your sanity is low" in
+     * this HUD family, while this state says something different: you cannot recover any further, however long
+     * you wait. Kept as one constant so the owner can tune the shade without touching the logic.
+     */
+    private static final int SANITY_CEILING_COLOUR = 0xB06060;
+
+    /** {@link #SANITY_CEILING_COLOUR} once the value has reached the ceiling; white in every other case. */
+    private int sanityValueColour()
+    {
+        if (m_cap == null || m_mc.player == null)
+            return 0xFFFFFF;
+
+        float max = m_cap.getMaxSanity();
+        float ceiling = max * ThoughtEffects.recoveryCeilingFraction(m_mc.player);
+
+        // No ceiling (the thought is not in the chain) means the ceiling equals the maximum: keep it white.
+        if (ceiling >= max - 0.01f)
+            return 0xFFFFFF;
+
+        // A hundredth of a point of slack, so a value resting exactly on the ceiling still counts as "at" it.
+        return m_cap.getSanity() >= ceiling - 0.01f ? SANITY_CEILING_COLOUR : 0xFFFFFF;
+    }
+
+    /**
      * Draws the current sanity value <b>above</b> the brain gauge sprite while sneaking.
      *
      * <p>Placement note: the gauge may be drawn above or below the position origin
@@ -592,7 +623,24 @@ public class GuiHandler
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
-        font.drawInBatch(text, tx, ty, 0xFFFFFF, true,
+        // Grey-red while the value sits at (or above) the recovery ceiling Depersonalization imposes; white
+        // otherwise. The ceiling is NOT the sanity maximum, so this is a state of its own: the owner asked for
+        // it to be readable at a glance without the maximum itself ever moving. Logged on change, because the
+        // colour is the only part of this that a probe cannot see.
+        int colour = sanityValueColour();
+
+        if (colour != m_lastSanityValueColour)
+        {
+            m_lastSanityValueColour = colour;
+            SanityMod.LOGGER.info("[SANITY-CEILING] value={} max={} ceiling={} colour={}",
+                    String.format(java.util.Locale.ROOT, "%.2f", m_cap.getSanity()),
+                    String.format(java.util.Locale.ROOT, "%.2f", m_cap.getMaxSanity()),
+                    String.format(java.util.Locale.ROOT, "%.2f",
+                            m_cap.getMaxSanity() * ThoughtEffects.recoveryCeilingFraction(m_mc.player)),
+                    String.format(java.util.Locale.ROOT, "%06X", colour & 0xFFFFFF));
+        }
+
+        font.drawInBatch(text, tx, ty, colour, true,
                 guiGraphics.pose().last().pose(), guiGraphics.bufferSource(),
                 Font.DisplayMode.NORMAL, 0, 15728880);
         // drawInBatch needs an explicit flush (see drawHintLine); this line was empty for the same reason.
@@ -615,6 +663,25 @@ public class GuiHandler
         return m_hintStage == HINT_STAGE_DEEP || m_hintStage == HINT_STAGE_EXPIRY
                 ? WARNING_LINE_SHAKE
                 : HINT_SHAKE;
+    }
+
+    /**
+     * Whether a non-mild inner line is on screen right now, read by {@code HintStateReporter}.
+     *
+     * <p>One rule for every path that draws a line: the mild tier is index 0, the severe tier is 1 and the
+     * deep and expiry windows have their own stages, so "stage is at least severe" covers the regular
+     * severe draw, both warning windows and the extra inner-voice line (which shares the severe draw) in a
+     * single comparison. The immediate {@code /sanity hint show} preview goes through the same field, so it
+     * counts too - which is right: it is the same line on the same screen.
+     *
+     * <p>The owner's rule is that the Command Hallucination bonus does <b>not</b> apply to the mild tier,
+     * which is exactly the case this returns false for.
+     */
+    public static boolean isNonMildHintOnScreen()
+    {
+        GuiHandler handler = s_instance;
+
+        return handler != null && handler.m_hint != null && handler.m_hintStage >= HINT_STAGE_SEVERE;
     }
 
     /** Draws {@link #m_hint} in the centre of the screen (shared by the regular line and the warning lines). */
@@ -687,7 +754,12 @@ public class GuiHandler
         // The batched variant (drawInBatch) silently produced nothing in this overlay no matter how it was
         // flushed, while drawString is the call the probe HUD and the sanity value above the gauge use and
         // is proven to reach the screen; that is why the centre line goes through it.
-        final MutableComponent shown = Component.literal(m_hint.getString());
+        //
+        // The picked component is drawn as it is. It used to be re-wrapped with
+        // Component.literal(m_hint.getString()), which flattens the component and throws away its styles -
+        // harmless while every line was plain text, but the chaos-restraint line 4 needs its garbled run to
+        // stay an OBFUSCATED style span (see TypeHintSpec.styled), and getString() would drop exactly that.
+        final MutableComponent shown = m_hint;
 
         Font font = m_mc.font;
         float pX = -font.width(shown) / 2f;
@@ -1019,6 +1091,16 @@ public class GuiHandler
             // current save has unlocked it (see HiddenVoicePool). The command preview deliberately does not.
             MentalHintManager.Pick picked = MentalHintManager.pickHintForDraw(stage);
 
+            // Type-pool diagnostics: report the synced counts whenever they change (and on the first pick of a
+            // session). The type pools are invisible to /sanity hint list by design, so "the new lines never
+            // appeared" has to be told apart from "the counts never reached this client" - and the only place
+            // that can answer it is this line.
+            String held = TypeHintPools.heldSummaryIfChanged();
+
+            if (!held.isEmpty())
+                SanityMod.LOGGER.info("[HINT-TYPE] held={} active mild={} severe={}",
+                        held, TypeHintPools.activeLineCount(0), TypeHintPools.activeLineCount(1));
+
             if (picked == null)
             {
                 // This tier has no candidate line at all (should not happen: the default pool is never empty)
@@ -1028,7 +1110,10 @@ public class GuiHandler
 
             m_hint = picked.text();
             m_hintHiddenVoice = picked.hidden();
-            m_hintColor = m_hintHiddenVoice ? HiddenVoicePool.COLOR_DARK_RED : 0xFFFFFF;
+            // The colour travels with the pick: white for the normal pools, dark red for the extra inner voice
+            // and the type colour for the chaos-restraint type pool (see TypeHintSpec.POOLS). Reading it from
+            // the pick instead of re-deriving it here keeps that table the single source of the colours.
+            m_hintColor = picked.color();
             m_hiddenVoiceDrawLogged = false;
             // Worse tiers keep their line on screen for a shorter time; the extra inner-voice line is a short
             // whisper rather than a thought that lingers, so it has its own window (measured live: the severe
@@ -1049,6 +1134,14 @@ public class GuiHandler
 
                 if (ConfigProxy.getPlaySounds(dim) && HiddenVoicePool.playSoundIfReady(m_mc))
                     SanityMod.LOGGER.info("[THIRD-VOICE] cave sound played");
+            }
+            else if (picked.fromTypePool())
+            {
+                // One line per pick, exactly like the extra voice above: without it a real-machine session
+                // cannot tell "the type pool was never dealt" from "it was dealt and drawn" - and the type
+                // pools are invisible to /sanity hint list by design, so the log is the only evidence.
+                SanityMod.LOGGER.info("[HINT-TYPE] type={} tier={} held={} line={}",
+                        picked.typeId(), stage, TypeHintPools.heldSummary(), m_hint.getString());
             }
 
             m_hintStage = stage;

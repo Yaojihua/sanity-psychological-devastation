@@ -1,0 +1,6 @@
+{
+	"parent": "minecraft:item/generated",
+	"textures": {
+		"layer0": "sanitypd:item/lost_memory_fragment_end"
+	}
+}

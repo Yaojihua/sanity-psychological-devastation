@@ -15,6 +15,13 @@ import java.util.List;
 
 public class Pet implements IPassiveSanitySource
 {
+    /** Boosted by the "Nature Affinity" thought; see {@link IPassiveSanitySource#isNatureSoothed()}. */
+    @Override
+    public boolean isNatureSoothed()
+    {
+        return true;
+    }
+
     /** Expensive: entity scan plus a line-of-sight raycast per owned pet. */
     @Override
     public boolean isExpensive()

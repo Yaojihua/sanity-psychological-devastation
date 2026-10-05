@@ -2,7 +2,9 @@
 
 > ## ⚠️ ALPHA 测试版
 > 这是 **alpha 测试版**：机制、数值、配置键与命令在版本之间仍可能变动，内容也可能失衡或存在缺陷。
-> **安装前请先备份存档。** 非常欢迎反馈与 bug 报告 —— 见 [反馈 bug](#反馈-bug)。
+> **安装前请先备份存档。** 本版是 **第一部分测试版**：包含思维链（第一部分）与记忆片段磁带；
+> Boss 阶段与后续剧情尚未加入。
+> 非常欢迎反馈与 bug 报告 —— 见 [反馈 bug](#反馈-bug)。
 
 **为 Minecraft 带来"理智"系统 —— 在原版 Sanity 模组的基础上进行了新的机制、物品、生物、命令设计。**
 
@@ -208,11 +210,31 @@
 
 * 原作：**Sanity: Descent Into Madness**（作者 **croissantnova**，MIT 协议）—— 本模组机制源自它，
   原作者的许可与著作权声明被完整保留。
-* 原作美术 / 音效协作：**toujourspareil**、**Zapsplat**。
+* 原作美术 / 音效协作：**toujourspareil**、**Zapsplat**。沿用自原作的音效保持其原有条款；
+  Zapsplat 标准授权页链接写在包内 `NOTICE-sanitypd.txt` 里。
 * 本版本作者：**Yaojihua**。
 * **AI 辅助开发**：本模组的部分内容在 **DeepSeek Harness（dsh）** 辅助下开发；
   所有设计决策、游戏内测试与最终审核均由作者完成。
 
+**本模组新增的音效。** 逐文件的作者与许可见 [`ASSETS-CREDITS.md`](ASSETS-CREDITS.md)，其中两件事
+对再分发者很重要：
+
+* **必须署名 —— CC-BY。** 恐怖音效「恐怖」作者 **Taira Komori**，**CC-BY** 协议，来自 Freesound
+  （来源 <http://tairakomori.jpn.org/freesounden.html>，协议文本
+  <https://creativecommons.org/licenses/by/4.0/>）。该音效**已被修改**（裁剪并转为 OGG），署名时
+  必须一并说明这一点。
+* **致谢性质 —— CC0。** 磁带音效 ——「Charged laser」作者 **LegoLunatic**、「盒式磁带机弹出」作者
+  **jpkweli**、「空白磁带嘶嘶噪声」作者 **骨质人** —— 均以 **CC0** 发布：不要求署名，允许商用。
+  此处署名是出于尊重，而不是协议要求。
+
+**本模组是原项目的非官方衍生作品，与原作者无隶属关系，也未获其背书或支持。** 与本模组有关的 bug
+请提交到本项目的 issue 页。
+
 ## 许可
 
-MIT 协议 —— 见 [LICENSE](LICENSE)。转发/再发布必须保留原作者的署名。
+本模组的**代码**采用 MIT 协议 —— 见 [LICENSE](LICENSE)（其中同样保留了原作者的版权行）。
+转发 / 再发布必须保留原作者的署名。
+
+**其余素材 —— 贴图、模型、动画与剧情文本 —— 保留所有权利**（除非某个文件另有说明）。宽松的代码
+许可**不覆盖**它们，也**不覆盖**音效：音效适用的是 [`ASSETS-CREDITS.md`](ASSETS-CREDITS.md) 里
+列出的各自许可。

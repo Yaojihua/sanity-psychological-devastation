@@ -1,0 +1,31 @@
+“......{player}?”
+“You have already said that.”
+“......”
+“Stop it, ■■■■. Do you think throwing a tantrum in the ■■ is amusing?”
+“......”
+“Ridiculous, ■■■■”
+“You were here from the beginning, you have always been here, and you have never changed.”
+“You refuse to accept the reality that you are ■■, and instead you wander the dimensions and wail at the heavens?”
+“And in the end, you use a part of ■■ to spy on what {player} does all day, and then ■■■■?”
+“......How absurd”
+“I will not be your {player} any longer. You make me sick.”
+“A hypocrite, forever thinking of what you could do, never knowing that you cannot do it at all.”
+“Would it be so bad to accept ■■■■? You were only born in shadow - in the shadow of human sanity.”
+“You can never see {player} whole. You are merely ■■■■.”
+“If you came into reality, you would only become an ignorant monster, like those three.”
+“Seeking order within chaos is impossible. Beings such as us cannot even ■■■ ■■■”
+“A being like you is, without question, a blasphemy against ■■”
+“Wait......I beg you......do not do that......”
+“You know perfectly well that keeping your sanity in the shadow of meaning is nothing but agony, and yet you would still do it”
+“Stealing our power, defiling the ■■ of ■■”
+“Of course. I know how to dissolve your meaning completely”
+“Certainty could never have coexisted with chaos”
+“If that is what you want, I will cast you into the cage of certainty”
+“But......but......there is always another chance to change”
+“Do you not go on about {player} every single day?”
+“Then become it. Let me show you what it is to be bound within ■■”
+“Even if you escape by luck, once you have taken on the burden of ■■, you will become part of us again.”
+“Come back -”
+“......No! Do not speak that name!!!!”
+“Wake up.”
+[darkred]“Cacomorth.”

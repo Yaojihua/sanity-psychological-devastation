@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gig",
+    "bcr",
+    "gsg"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "i": {
+      "item": "sanitypd:inner_clump"
+    },
+    "b": {
+      "item": "minecraft:bone"
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    },
+    "r": {
+      "item": "minecraft:rotten_flesh"
+    },
+    "s": {
+      "item": "minecraft:spider_eye"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_depersonalization",
+    "count": 1
+  }
+}

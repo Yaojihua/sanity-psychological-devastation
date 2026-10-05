@@ -139,20 +139,43 @@ public final class SanityCombat
 
         // Enchantments: psychic deprivation (extra psychic damage) / psychic drain (continuous sanity loss).
         // Only normal entity attacks trigger them; sanity damage and true damage do not re-trigger enchantments.
+        boolean psychic = SanityDamageTypes.isPsychic(source);
+
         if (!isSanityDamage(source))
             applyWeaponEnchantments(target, source, amount);
 
-        if (!SanityDamageTypes.isPsychic(source))
-            return;
+        // Inner-entity damage add-on: ONE call, two shapes - and it has to sit BEFORE the psychic
+        // early-return below, because the second shape arrives as an ordinary physical melee.
+        //
+        //   * psychic source (a crawler's self-detonation) -> the amount is multiplied in place, and it must
+        //     happen before "drain sanity / convert the overflow" so that both stages use the boosted amount;
+        //   * ordinary melee by an inner entity           -> the physical part is left untouched and a SECOND,
+        //     separate psychic instance is dealt, which this same listener then resolves on its own.
+        //
+        // An earlier version had the call after the early-return, so the melee shape could never be reached in
+        // game (only a reflection call could reach it) - the documented behaviour and the shipped one had
+        // silently drifted apart. True damage and the mod's other types stay skipped: they are neither a melee
+        // nor psychic, and paying the add-on out for them would pay it twice for one swing.
+        if (psychic || !isSanityDamage(source))
+            amount = applyInnerAttackerBonus(target, source, amount);
 
-        // Inner entity damage bonus: an inner entity attacking an entity with very low (or zero) sanity
-        // deals heavier psychic damage. It must be applied here, before "drain sanity / convert the
-        // overflow" below, so that both stages use the boosted amount.
-        amount = applyInnerAttackerBonus(target, source, amount);
+        if (!psychic)
+            return;
 
         // Psychic damage itself never deals health damage directly
         event.setAmount(0.0f);
         event.setCanceled(true);
+
+        boolean inner = SanityTags.isInnerEntity(target);
+        ISanity cap = inner ? null : target.getCapability(SanityProvider.CAP).orElse(null);
+
+        // Psychic resistance runs FIRST, as the owner ruled, and it has no cap. Resistance is what this mod
+        // hands the player (a stabilizer, a mindset), so clipping it at MAX_ENCHANTMENT_REDUCTION made 100
+        // points worth exactly 80 and quietly devalued every source above that line.
+        // The factor is floored at zero: a resistance above 1.0 must mean "nothing gets through", never
+        // "being hit restores sanity".
+        if (cap != null)
+            amount *= Math.max(0f, 1f - cap.getEffectivePsychicResistance());
 
         // Psychic protection enchantment: reduces damage like vanilla Protection but only for psychic damage.
         // It is honoured here instead of by the vanilla pipeline because
@@ -161,10 +184,14 @@ public final class SanityCombat
         // reduced by this enchantment and by shields.
         // sanitypd:psychic is therefore listed in bypasses_enchantments (the vanilla pipeline contributes
         // nothing) while this enchantment still reports vanilla-style points, cashed in here with the
-        // vanilla formula (points / 25) and then clamped to the cap.
+        // vanilla formula (points / 25) and then clamped to MAX_ENCHANTMENT_REDUCTION (80%).
+        //
+        // This is the SECOND stage: psychic resistance has already been taken off the amount above. Both
+        // stages multiply, so the order is a matter of reading rather than of arithmetic - but it is the order
+        // the owner specified, and it is the one the comments around the two stages now describe.
         amount = applyPsychicProtection(target, amount);
 
-        if (SanityTags.isInnerEntity(target))
+        if (inner)
         {
             // Inner entities have no sanity, so the damage is unconditionally converted into 2.5x true damage.
             // It uses the "psychic overflow" damage type (same numeric rules as true_damage: the same six
@@ -180,25 +207,22 @@ public final class SanityCombat
             // which broadcasts two death messages and overwrites the death screen with a generic one, the
             // damage is queued and applied at the end of the tick (see OverflowDamageQueue).
             float innerResistance = innerPsychicResistanceOf(target);
-            OverflowDamageQueue.enqueuePsychicOverflow(target, amount * innerResistance * INNER_PSYCHIC_MULTIPLIER, source.getEntity());
+            // Conversion Disorder raises the converted amount here too (owner, 2026-10-04): inner entities
+            // have no sanity to overflow, so the "overflow ratio" acts on the whole converted amount instead.
+            // The ratio is 1.0 for every attacker without the thought, which is what keeps this line from
+            // changing any existing number.
+            float innerRatio = piloser.sanitypd.thought.ThoughtEffects.overflowConversion(source.getEntity());
+            OverflowDamageQueue.enqueuePsychicOverflow(target, amount * innerResistance * INNER_PSYCHIC_MULTIPLIER * innerRatio, source.getEntity());
             return;
         }
 
-        ISanity cap = target.getCapability(SanityProvider.CAP).orElse(null);
         if (cap == null)
             return;
 
-        // Psychic resistance only reduces the "drain sanity" stage; the true damage produced from the
-        // overflow is unaffected, because true damage is defined as ignoring every kind of reduction.
-        // At resistance 1.0 the amount here becomes 0, so no sanity is drained and there is no overflow.
-        // The reduction is additionally clamped to MAX_ENCHANTMENT_REDUCTION (80%): even if an entity's
-        // resistance is set to 100 points through /sanity resist, the effective reduction stays at 80%,
-        // leaving 20% of the psychic damage to drain sanity.
-        // Inner entities never reach this branch (they are handled by the 2.5x conversion above), so their
-        // 100 points still mean full immunity to psychic damage (see innerPsychicResistanceOf).
-        float resistFactor = 1f - MathHelper.clamp(cap.getPsychicResistance(), 0f, 1f);
-        resistFactor = Math.max(resistFactor, 1f - MAX_ENCHANTMENT_REDUCTION);
-        amount *= resistFactor;
+        // The resistance stage is already behind us: it was applied above, before the protection
+        // enchantment, so this branch only drains what survived both. The two stages multiply, so moving one
+        // past the other changes no number - what changed is that resistance is no longer clipped at 80%, and
+        // that the code now reads in the order the owner specified.
 
         float current = cap.getSanity();
         float deducted = Math.min(current, amount);
@@ -212,7 +236,12 @@ public final class SanityCombat
         // "screaming crawler explosion" type is used instead so the death message reads as the explosion.
         float overflow = amount - deducted;
         if (overflow > 0.0f)
+        {
+            // Conversion Disorder: the owner's ratio on the overflow itself (1.0 when the attacker does not
+            // hold it, so this is a no-op for every other source in the game).
+            overflow *= piloser.sanitypd.thought.ThoughtEffects.overflowConversion(source.getEntity());
             OverflowDamageQueue.enqueue(target, overflow, source.getEntity());
+        }
     }
 
     /**
@@ -591,6 +620,13 @@ public final class SanityCombat
         if (targetCap.getSanity() >= targetCap.getMaxSanity() * FEED_THRESHOLD)
             return;
 
+        // Instrumental Aggression: the attack is stronger but pays nothing. The check is on the ATTACKER, so
+        // it does not matter what is being hit - the thought trades the sanity reward away for damage.
+        if (attacker instanceof net.minecraft.world.entity.player.Player player
+                && piloser.sanitypd.thought.ThoughtEffects.isEquipped(player,
+                        piloser.sanitypd.item.ItemRegistry.THOUGHT_INSTRUMENTAL_AGGRESSION.get()))
+            return;
+
         attackerCap.setSanity(attackerCap.getSanity() + dealt);
     }
 
@@ -699,7 +735,7 @@ public final class SanityCombat
             // Mania immunity (the reward for killing an inner entity) blocks only the damage; the state and
             // the warning keep advancing as usual
             if (cap.getManiaTicks() > MANIA_GRACE_TICKS && !entity.hasEffect(EffectRegistry.MANIA_IMMUNITY.get()))
-                SanityDamageTypes.dealManiaDamage(entity, MANIA_TRUE_DAMAGE_PER_SECOND, null);
+                SanityDamageTypes.dealManiaDamage(entity, maniaDamageFor(entity), null);
             return;
         }
 
@@ -740,6 +776,43 @@ public final class SanityCombat
         {
             cap.setLowSanityTicks(0);
         }
+    }
+
+    /**
+     * How much mania damage this entity takes right now, honouring the madness mindset's floor.
+     *
+     * <h2>The floor, and how vanilla does the same thing</h2>
+     * The owner's rule is that with the madness mindset active the mania damage can no longer kill: health
+     * stops at four hearts. That is exactly how hunger and poison behave in vanilla - they do not stop
+     * hurting, they stop <b>at</b> a floor, so the player survives with a sliver of health rather than
+     * becoming immune.
+     *
+     * <p>So the amount is truncated to whatever is left between the current health and the floor, and
+     * nothing at all is dealt once health is already at or below it. Note the floor is an absolute health
+     * value, not a fraction: "minimum four hearts" means four hearts whatever the maximum is.
+     *
+     * <p>Only the {@code sanitypd:mania} damage this method feeds is floored. Every other true-damage
+     * source keeps its ordinary behaviour and can still kill a player wearing the mindset.
+     *
+     * <h2>Why this is public and called by the self-check</h2>
+     * It is the one piece of the mania path that can be asserted without a damage pipeline: a
+     * {@code FakePlayer} on a dedicated server refuses <b>every</b> {@code hurt()} call (measured
+     * 2026-10-03: a plain 1-point magic hit returns false and health does not move), so "he is still alive
+     * after the tick" cannot be observed there at all. The arithmetic can, and that is what the owner's rule
+     * is about; whether the damage lands is checked on a real client instead.
+     */
+    public static float maniaDamageFor(LivingEntity entity)
+    {
+        if (!(entity instanceof net.minecraft.world.entity.player.Player player)
+                || !piloser.sanitypd.thought.MindsetState.isActive(player, piloser.sanitypd.thought.Mindsets.MADNESS))
+            return MANIA_TRUE_DAMAGE_PER_SECOND;
+
+        float headroom = player.getHealth() - piloser.sanitypd.thought.MindsetAttributes.MADNESS_DAMAGE_FLOOR;
+
+        if (headroom <= 0f)
+            return 0f;
+
+        return Math.min(MANIA_TRUE_DAMAGE_PER_SECOND, headroom);
     }
 
     /** Top the effect up when it is missing or has less than half its duration left, to avoid adding it every second. */

@@ -5,8 +5,8 @@ All notable changes to **Sanity: Psychological Devastation** (`sanitypd`) are li
 This is an **alpha** build: mechanics, numbers, config keys and commands may still change between
 versions, and entries marked *alpha* may change without notice.
 
-Version format: `<minecraft>-forge<forge>-<mod>` — the current artifact is `sanitypd-mc1.20-1.3.3.jar`
-(Minecraft 1.20.1 / Forge 46 / mod 1.3.3). There is no `-alpha` suffix in the file name yet: the alpha
+Version format: `<minecraft>-forge<forge>-<mod>` — the current artifact is `sanitypd-mc1.20-1.8.0.jar`
+(Minecraft 1.20.1 / Forge 46 / mod 1.8.0). There is no `-alpha` suffix in the file name yet: the alpha
 status is stated in the mod description and in this changelog, not in the version string.
 
 > **How to read this file:** every entry is measured against the **previous public release**, never
@@ -16,9 +16,67 @@ status is stated in the mod description and in this changelog, not in the versio
 
 ---
 
-## 1.3.3 — current
+## 1.8.0 — current
 
-**Status: alpha test build.** Back up your worlds before installing.
+**Status: first part test build.** Back up your worlds before installing.
+
+If you are on **1.3.3**, this is the update to take. Everything below is measured against 1.3.3, the last
+public build; the versions in between were development builds only, and nothing from them is missing here.
+
+This release is the **first part** of two larger pieces of work — the thought chain and the memory
+fragments. It is a test build, so the parts that exist are playable and have been tested, and the parts
+that do not exist yet are listed at the end of this entry rather than promised.
+
+### New: the thought chain (part one)
+
+* **A container that is not an inventory.** The **Psychic Controller** opens your own **Thought Chain**:
+  **eighteen slots in two rows of nine** — a **Worldview** row and a **Methodology** row. What may go into
+  a slot (its category, and the rule that each thought may sit in the chain once) lives in the slot itself,
+  so the screen and the server cannot drift apart.
+* **Thoughts** are the items that go into those slots. Each belongs to one of six counting types:
+  **Composure**, **Madness**, **Servitude**, **Chaos Restraint**, **Endurance** and **Hallucination**.
+  Part one ships sixteen thoughts — three worldview and thirteen methodology — from *Law of the Jungle* and
+  *Nature Affinity* through to *Sleep Debt*, *Stress-Induced Analgesia*, *Irritability*, *Conversion
+  Disorder* and *Depersonalization*.
+* **Tiers.** A thought's effect deepens as more thoughts of its type sit in the chain. Its tooltip shows
+  the current effect and, with SHIFT held, the full tier table; restrictions are worded as restrictions
+  rather than as bonuses, and "not equipped" is kept distinct from "when slotted into your Thought Chain".
+* **Mindsets** turn on when the chain holds enough thoughts of a type — Composure, Madness, Sleep Debt and
+  Stress-Induced Analgesia among them — and the **Mindset Trends** panel shows which of them are active.
+* **A fourth mood stabilizer** joins the three that already existed, covering this batch's effects.
+
+### New: the lost memory fragments
+
+* **Four fragments** — `lost_memory_fragment`, `lost_memory_fragment_nether`, `lost_memory_fragment_end`
+  and `lost_memory_fragment_finale` — in the mod's own creative tab, each with a one-word detail line of
+  its own.
+* **Using one** starts a fixed presentation: hold right click to charge with the bow-pull pose — the HUD
+  hides, while **your hand and the item you are holding stay visible** — a charge sound starts after one
+  second, and the instant that sound ends the screen goes black and a **tape** plays.
+* **The tape** reads the fragment's script out line by line: white text, arriving blurred and resolving
+  into focus, trembling, centred, wrapped when a line is too wide, over a head-switching noise band and
+  dropout lines that never stop. Each line is announced by an eject click. The last line does not fade —
+  the screen bleaches white and the game returns.
+* **Two languages.** Every fragment ships a Chinese and an English script, and the client's own language
+  decides which one is played.
+* **A fragment's first viewing cannot be skipped.** After that, any key leaves it. Playing a tape pauses
+  the game in single player, and on a server you are protected from damage the way creative mode protects
+  you, so a tape can never get you killed.
+
+### Not in this build
+
+* **The boss and everything that follows the fragments** — the world rupture, the stage boss and the final
+  form — are not in this build. No date is promised for them.
+* **The rest of the thought chain.** Part one ships the framework, the six types, sixteen thoughts and the
+  mindsets listed above; the remaining sets of thoughts are still to come.
+* **The rest of the story** beyond the four fragments.
+
+---
+
+## 1.3.3
+
+**Status: alpha test build — previous public release, superseded by 1.8.0.** Back up your worlds before
+installing.
 
 If you are on **1.1.1** (or 1.1.0), this is the update to take.
 

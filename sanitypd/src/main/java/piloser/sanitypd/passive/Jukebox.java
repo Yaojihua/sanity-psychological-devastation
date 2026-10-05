@@ -17,6 +17,13 @@ import java.util.List;
 
 public class Jukebox implements IPassiveSanitySource
 {
+    /** Boosted by the "Nature Affinity" thought; see {@link IPassiveSanitySource#isNatureSoothed()}. */
+    @Override
+    public boolean isNatureSoothed()
+    {
+        return true;
+    }
+
     public static final List<BlockPos> JUKEBOXES = new ArrayList<>();
     public static final List<BlockPos> UNSETTLING_JUKEBOXES = new ArrayList<>();
 

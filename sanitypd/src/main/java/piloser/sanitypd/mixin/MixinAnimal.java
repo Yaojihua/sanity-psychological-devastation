@@ -10,6 +10,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import piloser.sanitypd.item.ItemRegistry;
+import piloser.sanitypd.thought.ThoughtEffects;
 
 @Mixin(Animal.class)
 public abstract class MixinAnimal
@@ -23,7 +25,11 @@ public abstract class MixinAnimal
         {
             pPlayer.getCapability(SanityProvider.CAP).ifPresent(s ->
             {
-                if (s.getMadness() >= Blackout.THRESHOLD)
+                // Duplicity: friendly creatures stop turning away from the player at low sanity. The
+                // threshold check itself is untouched - with the thought in the chain the interaction simply
+                // proceeds as it would for a sane player.
+                if (s.getMadness() >= Blackout.THRESHOLD
+                        && !ThoughtEffects.isEquipped(pPlayer, ItemRegistry.THOUGHT_DUPLICITY.get()))
                     ci.setReturnValue(InteractionResult.PASS);
             });
         }

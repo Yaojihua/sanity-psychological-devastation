@@ -1,6 +1,6 @@
 package piloser.sanitypd.item;
 
-import piloser.sanitypd.client.ItemTooltipHelper;
+
 import piloser.sanitypd.item.material.FlowerArmorMaterial;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ArmorItem;
@@ -24,6 +24,6 @@ public class GarlandItem extends ArmorItem
     public void appendHoverText(@NotNull ItemStack pStack, @Nullable Level pLevel, @NotNull List<Component> pTooltipComponents, @NotNull TooltipFlag pIsAdvanced)
     {
         super.appendHoverText(pStack, pLevel, pTooltipComponents, pIsAdvanced);
-        ItemTooltipHelper.showTooltipOnShift(pTooltipComponents, "garland");
+        ItemTooltips.showTooltipOnShift(pTooltipComponents, "garland");
     }
 }

@@ -14,7 +14,7 @@ import net.minecraftforge.fml.common.Mod;
 import java.util.Locale;
 
 /**
- * Client-side probe for the sanity gates that decide what a screaming crawler is allowed to do (round 29).
+ * Client-side probe for the sanity gates that decide what a screaming crawler is allowed to do.
  *
  * <h2>The three rules being watched</h2>
  * <ol>

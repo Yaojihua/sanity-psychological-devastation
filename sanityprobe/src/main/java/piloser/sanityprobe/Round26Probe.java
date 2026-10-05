@@ -8,7 +8,8 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 /**
- * Aggregate probe for the round-26 feature set: one checklist run that writes every client-side
+ * Aggregate probe for the shield, spawn-egg, enchantment, refinement and splash feature sets: one checklist
+ * run that writes every client-side
  * group into the log.
  *
  * <p>It does exactly three things and implements no verdict logic of its own, so every rule has

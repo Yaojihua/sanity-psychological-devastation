@@ -23,13 +23,16 @@ import java.util.List;
 /**
  * Sanity stabilizer: a food item that restores neither hunger nor saturation.
  *
- * <p>The three variants are named A/B/C with plain ASCII letters.
+ * <p>The four variants are distinguished by a Greek letter after the name
+ * ("Mood Stabilizer α" / "心境稳定剂 α"), which is what the language files carry; the item ids stay plain
+ * ASCII ({@code stabilizer_a} … {@code stabilizer_d}) so a registry name never needs a non-ASCII character.
  *
  * <table border="1">
  *   <tr><th>Item</th><th>Effect</th><th>Cooldown</th></tr>
- *   <tr><td>{@link Kind#ALPHA} A</td><td>restores {@value #ALPHA_SANITY} sanity immediately</td><td>15 s</td></tr>
- *   <tr><td>{@link Kind#BETA} B</td><td>grants 3 minutes of mania immunity</td><td>5 min</td></tr>
- *   <tr><td>{@link Kind#GAMMA} C</td><td>grants 1 minute of inner immunity</td><td>2 min</td></tr>
+ *   <tr><td>{@link Kind#ALPHA} α</td><td>restores {@value #ALPHA_SANITY} sanity immediately</td><td>15 s</td></tr>
+ *   <tr><td>{@link Kind#BETA} β</td><td>grants 3 minutes of mania immunity</td><td>5 min</td></tr>
+ *   <tr><td>{@link Kind#GAMMA} γ</td><td>grants 1 minute of inner immunity</td><td>2 min</td></tr>
+ *   <tr><td>{@link Kind#DELTA} δ</td><td><b>takes</b> {@value #DELTA_SANITY} sanity away immediately</td><td>5 s</td></tr>
  * </table>
  *
  * <h2>Cooldown</h2>
@@ -37,7 +40,7 @@ import java.util.List;
  * ender pearls) through {@link Player#getCooldowns()}{@code .addCooldown(this, ticks)}.
  * <ul>
  *   <li>It applies per {@link Item}, so every stack and slot of the same item shares one cooldown,
- *       and the three stabilizers are independent of each other;</li>
+ *       and the four stabilizers are independent of each other;</li>
  *   <li>Vanilla {@code ItemCooldowns} only draws the overlay and does not block use, which is why
  *       chorus fruit and ender pearls can be spammed, so {@link #use} blocks explicitly on top of it.</li>
  * </ul>
@@ -47,15 +50,17 @@ import java.util.List;
  */
 public class StabilizerItem extends Item
 {
-    /** The three stabilizer variants. Cooldowns are in ticks (20 ticks = 1 second). */
+    /** The four stabilizer variants. Cooldowns are in ticks (20 ticks = 1 second). */
     public enum Kind
     {
-        /** A: restores 35 sanity immediately, 15 s cooldown. */
+        /** α: restores 35 sanity immediately, 15 s cooldown. */
         ALPHA(15 * 20, "item.sanitypd.stabilizer_a.tooltip"),
-        /** B: 3 minutes of mania immunity, 5 min cooldown. */
+        /** β: 3 minutes of mania immunity, 5 min cooldown. */
         BETA(5 * 60 * 20, "item.sanitypd.stabilizer_b.tooltip"),
-        /** C: 1 minute of inner immunity, 2 min cooldown. */
-        GAMMA(2 * 60 * 20, "item.sanitypd.stabilizer_c.tooltip");
+        /** γ: 1 minute of inner immunity, 2 min cooldown. */
+        GAMMA(2 * 60 * 20, "item.sanitypd.stabilizer_c.tooltip"),
+        /** δ: takes 40 sanity away immediately, 5 s cooldown. */
+        DELTA(5 * 20, "item.sanitypd.stabilizer_d.tooltip");
 
         private final int m_cooldownTicks;
         private final String m_tooltipKey;
@@ -83,6 +88,16 @@ public class StabilizerItem extends Item
     public static final int BETA_IMMUNITY_TICKS = 3 * 60 * 20;
     /** Inner immunity duration granted by C (ticks) = 1 minute, matching {@code InnerImmunityEffect.DURATION_TICKS}. */
     public static final int GAMMA_INNER_IMMUNITY_TICKS = 60 * 20;
+    /**
+     * Sanity <b>taken away</b> immediately by D.
+     *
+     * <p>Deliberately the same code path as A with a negative amount, so it goes through
+     * {@code SanityProcessor#addSanity} exactly like every other sanity change in this mod: the value is
+     * scaled by the negative multiplier and by the garland, and the sanity bar, the HUD arrow and the
+     * "you lost sanity" feedback all react the way they do to any other loss. A stabilizer that secretly
+     * bypassed the normal path would be the kind of special case that later reads as a bug.
+     */
+    public static final float DELTA_SANITY = -40.0f;
 
     /** Shared food properties: no hunger or saturation restored, and edible on a full hunger bar. */
     public static FoodProperties stabilizerFood()
@@ -110,8 +125,10 @@ public class StabilizerItem extends Item
     /**
      * Adds a single grey line describing both the effect and the cooldown.
      *
-     * <p>The item restores no hunger and has a cooldown, so a line is shown directly rather than
-     * through the shared "hold SHIFT for more" tooltips, which are meant for longer descriptions.
+     * <p>The item restores no hunger and has a cooldown, so a line is shown directly rather than through the
+     * shared "hold SHIFT for more" tooltips, which are meant for longer descriptions. The owner confirmed on
+     * 2026-10-03 that the stabilizers are meant to stay that way, including the new δ variant
+     * ("稳定剂没有详情页,这就不用加").
      */
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag)
@@ -164,9 +181,13 @@ public class StabilizerItem extends Item
             case GAMMA -> player.addEffect(new MobEffectInstance(
                     EffectRegistry.INNER_IMMUNITY.get(), GAMMA_INNER_IMMUNITY_TICKS, 0,
                     false /* ambient */, false /* no particles */, true /* show icon */));
+
+            // Delta is the cost variant: it takes sanity away. Same call as Alpha, negative amount.
+            case DELTA -> player.getCapability(SanityProvider.CAP)
+                    .ifPresent(cap -> SanityProcessor.addSanity(cap, DELTA_SANITY, player));
         }
 
-        // Cooldown is keyed by Item, so all stacks and slots of that item share it; the three
+        // Cooldown is keyed by Item, so all stacks and slots of that item share it; the four
         // stabilizers are independent of each other.
         player.getCooldowns().addCooldown(this, m_kind.cooldownTicks());
     }

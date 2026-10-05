@@ -14,7 +14,7 @@ import java.lang.reflect.Method;
 import java.util.Locale;
 
 /**
- * Client-side probe for the warning-window rules of the inner monologue (round-28 behaviour).
+ * Client-side probe for the warning-window rules of the inner monologue.
  *
  * <h2>Why this must be measured on the client</h2>
  * Tier selection, the pre-damage window and the immunity-expiry window all live in
@@ -325,7 +325,7 @@ public final class HintWindowProbe
         return player.getEffect(mobEffect);
     }
 
-    /** One-off check that the round-28 constants and the expiry pool really exist. */
+    /** One-off check that the warning-window constants and the expiry pool really exist. */
     private static void reportApi()
     {
         try

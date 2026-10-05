@@ -42,3 +42,24 @@ Minecraft 1.20 / 1.20.1, Forge 46+, and [Sanity: Psychological Devastation](../R
 ## License
 
 MIT — see [LICENSE](../LICENSE).
+
+
+## About the labels in this project
+
+Class names such as `Round26Probe` and labels such as `[P26]`, `[SPLASH-26-SAMPLE]` or
+`[THOUGHT41-29]` look like build tags, and that is what they are: this probe grew one
+feature set at a time, and each set got its own group letter and tag.
+
+They are **kept on purpose**:
+
+* the probe registers each group **by class name** - the reflective lookup that arms a
+  group would break if the class were renamed;
+* the tags are what existing logs and notes quote, so renaming them would make old
+  evidence unreadable;
+* they appear in the **probe** (a diagnostic tool), not in the mod itself.
+
+Read them as historical group identifiers.
+
+（中文：本工程里的 `Round26Probe`、`[P26]`、`[THOUGHT41-29]` 之类标签是**历史分组代号** ——
+探针按类名注册并反射加载，改名会直接打断它；历史日志也引用这些标签，改了旧证据就读不了；
+且它们只出现在**探针**（诊断工具）里。故**有意保留**。）

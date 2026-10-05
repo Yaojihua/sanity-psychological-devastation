@@ -42,12 +42,14 @@ import piloser.sanitypd.effect.SanityRegenEffect;
  * can be eaten, and every colour shows the same grey sweep.
  *
  * <h2>Eating again replaces the effect</h2>
- * The cooldown is only 5 seconds while the effect lasts 25, so a player can eat again long before it
+ * The cooldown is 10 seconds while the effect lasts 25, so a player can still eat again before it
  * ends. The duration is not extended: the fresh instance simply replaces the old one, which is the
  * vanilla behaviour for {@code addEffect}. The same is true of the Regeneration effect.
  *
- * <p>Food properties use {@code alwaysEat()}, so a macaron can be eaten on a full hunger bar (the
- * sanity and Regeneration parts do not depend on being hungry).
+ * <p>Food properties do <b>not</b> use {@code alwaysEat()}: a macaron cannot be eaten on a full hunger
+ * bar. The sanity and Regeneration parts therefore no longer bypass the hunger gate - a player who wants
+ * them has to make room first. That is the owner's ruling: eating is eating, and a full stomach refuses
+ * the food whatever else the food would have done.
  */
 public class MacaronItem extends Item
 {
@@ -55,8 +57,8 @@ public class MacaronItem extends Item
     public static final int REGEN_TICKS = 15 * 20;
     /** Regeneration amplifier: 1 means level II. */
     public static final int REGEN_AMPLIFIER = 1;
-    /** Cooldown shared by every macaron colour, in ticks: 5 seconds. */
-    public static final int COOLDOWN_TICKS = 5 * 20;
+    /** Cooldown shared by every macaron colour, in ticks: 10 seconds. */
+    public static final int COOLDOWN_TICKS = 10 * 20;
 
     /** Hunger restored, in the half-units the food properties use (3 hunger points). */
     public static final int NUTRITION = 6;
@@ -76,9 +78,13 @@ public class MacaronItem extends Item
     /**
      * Saturation actually added by one macaron, as the game computes it ({@code nutrition * mod * 2}).
      *
-     * <p>A derived constant rather than a literal, so the intent stays visible next to the modifier, and
-     * asserted by the self-check on a player whose hunger bar is full - the one case where the hunger cap
-     * cannot hide a wrong modifier.
+     * <p>A derived constant rather than a literal, so the intent stays visible next to the modifier.
+     *
+     * <p><b>Note for anyone checking this value:</b> eating with a full hunger bar is no longer a way to read
+     * it. That relied on {@code alwaysEat()}; the item does not have it any more, so a full bar refuses the
+     * food and the assertion would pass for the wrong reason. A check has to leave room in the bar before
+     * eating, or read the food properties directly. (No check asserts this value today - the earlier
+     * reference to a self-check here pointed at code that no longer existed.)
      */
     public static final float SATURATION_GAIN = NUTRITION * SATURATION_MOD * 2.0f;
 
@@ -118,13 +124,18 @@ public class MacaronItem extends Item
         }
     }
 
-    /** Shared food properties: restores a little hunger and saturation, and is edible when full. */
+    /**
+     * Shared food properties: restores a little hunger and saturation, and is <b>not</b> edible when full.
+     *
+     * <p>{@code alwaysEat()} is deliberately absent, so vanilla's own hunger gate applies and this item
+     * behaves like every other food. Removing it is a behaviour change, not a tidy-up: the sanity and
+     * Regeneration parts are granted by eating, so they are now gated by hunger too.
+     */
     public static FoodProperties macaronFood()
     {
         return new FoodProperties.Builder()
                 .nutrition(NUTRITION)
                 .saturationMod(SATURATION_MOD)
-                .alwaysEat()
                 .build();
     }
 

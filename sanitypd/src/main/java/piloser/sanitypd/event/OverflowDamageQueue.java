@@ -3,6 +3,7 @@ package piloser.sanitypd.event;
 import piloser.sanitypd.SanityMod;
 import piloser.sanitypd.combat.SanityCombat;
 import piloser.sanitypd.damage.SanityDamageTypes;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.event.TickEvent;
@@ -12,6 +13,9 @@ import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import piloser.sanitypd.effect.EffectRegistry;
+import piloser.sanitypd.effect.PsychicDrainEffect;
 
 /**
  * Deferred queue for the real-damage overflow of psychic damage.
@@ -39,8 +43,47 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = SanityMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class OverflowDamageQueue
 {
-    /** One pending overflow hit. {@code forcedPsychicOverflow} always uses the psychic_overflow type (inner mob branch). */
-    private record Entry(LivingEntity target, float amount, Entity attacker, boolean forcedPsychicOverflow) {}
+    /** One pending effect, resolved at the end of the tick that queued it. */
+    private sealed interface Entry permits Overflow, Drain
+    {
+        LivingEntity target();
+
+        void resolve();
+    }
+
+    /**
+     * One pending overflow hit. {@code forcedPsychicOverflow} always uses the psychic_overflow type (inner mob branch).
+     */
+    private record Overflow(LivingEntity target, float amount, Entity attacker, boolean forcedPsychicOverflow)
+            implements Entry
+    {
+        @Override
+        public void resolve()
+        {
+            if (forcedPsychicOverflow)
+                SanityDamageTypes.dealPsychicOverflow(target, amount, attacker);
+            else
+                SanityCombat.applyOverflowDamage(target, amount, attacker);
+        }
+    }
+
+    /**
+     * One pending psychic-drain application, from the Catharsis thought.
+     *
+     * <p>Queued rather than applied in the hurt event for the same reason the overflow is: the drain is
+     * added while the target is already inside its hurt handling, and vanilla refreshes an effect by
+     * removing and re-adding it, which fires effect events. Doing that from inside {@code hurt()} is the
+     * shape that produced double deaths before this queue existed.
+     */
+    private record Drain(LivingEntity target, int durationTicks, Entity source) implements Entry
+    {
+        @Override
+        public void resolve()
+        {
+            target.addEffect(new MobEffectInstance(EffectRegistry.PSYCHIC_DRAIN.get(), durationTicks, 0, false, true),
+                    source);
+        }
+    }
 
     private static final List<Entry> QUEUE = new ArrayList<>();
 
@@ -56,7 +99,22 @@ public final class OverflowDamageQueue
         if (target == null || overflow <= 0.0f)
             return;
 
-        QUEUE.add(new Entry(target, overflow, attacker, false));
+        QUEUE.add(new Overflow(target, overflow, attacker, false));
+    }
+
+    /**
+     * Queues the psychic drain that the "Catharsis" thought adds to a hit, resolved at the end of the tick.
+     *
+     * @param target        the entity that was hit
+     * @param durationTicks how long the drain lasts
+     * @param source        the attacker, so the effect is attributed to him
+     */
+    public static void enqueueDrain(LivingEntity target, int durationTicks, Entity source)
+    {
+        if (target == null || durationTicks <= 0)
+            return;
+
+        QUEUE.add(new Drain(target, durationTicks, source));
     }
 
     /**
@@ -69,7 +127,37 @@ public final class OverflowDamageQueue
         if (target == null || overflow <= 0.0f)
             return;
 
-        QUEUE.add(new Entry(target, overflow, attacker, true));
+        QUEUE.add(new Overflow(target, overflow, attacker, true));
+    }
+
+    /**
+     * How many drain entries are waiting to be resolved.
+     *
+     * <p>Exists so a self-check can assert "the drain was queued" without pumping the server tick, and
+     * without the check having to know the queue's internals.
+     */
+    public static int pendingDrains()
+    {
+        int count = 0;
+
+        for (Entry entry : QUEUE)
+        {
+            if (entry instanceof Drain)
+                count++;
+        }
+
+        return count;
+    }
+
+    /**
+     * Drops everything queued without resolving it.
+     *
+     * <p>For self-checks only: they assert on what a single call queued, and a queue still holding the
+     * previous call's entry would make the second assertion pass for the wrong reason.
+     */
+    public static void clear()
+    {
+        QUEUE.clear();
     }
 
     /** Resolves the whole queue once at the end of the tick. */
@@ -89,14 +177,11 @@ public final class OverflowDamageQueue
         {
             LivingEntity target = entry.target();
 
-            // The target died earlier in this tick from another hit: do not hit it again
+            // The target died earlier in this tick from another hit: do not touch it again
             if (target == null || !target.isAlive())
                 continue;
 
-            if (entry.forcedPsychicOverflow())
-                SanityDamageTypes.dealPsychicOverflow(target, entry.amount(), entry.attacker());
-            else
-                SanityCombat.applyOverflowDamage(target, entry.amount(), entry.attacker());
+            entry.resolve();
         }
     }
 }

@@ -91,7 +91,7 @@ public abstract class MixinAnvilMenu
      * result whose cost reaches 40 (the "Too Expensive!" state in {@code ItemCombinerMenu#mayPickup}, which
      * {@code AnvilMenu} implements). Clamping here is deliberate:
      * <ul>
-     *   <li>the operation stays takeable, instead of producing an untakeable result (the round-28 report
+     *   <li>the operation stays takeable, instead of producing an untakeable result (an early report
      *       "over 40 shows Too Expensive" was exactly that);</li>
      *   <li>nothing in the vanilla anvil is overridden, so other mods and vanilla behaviour are untouched
      *       (a forced pickup would be a compatibility risk).</li>

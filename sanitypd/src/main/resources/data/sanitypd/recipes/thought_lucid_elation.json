@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gig",
+    "ici",
+    "gig"
+  ],
+  "key": {
+    "c": { "item": "sanitypd:inner_core" },
+    "g": { "item": "minecraft:glass" },
+    "i": { "item": "minecraft:iron_sword" }
+  },
+  "result": {
+    "item": "sanitypd:thought_lucid_elation",
+    "count": 1
+  }
+}

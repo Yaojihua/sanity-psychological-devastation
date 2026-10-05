@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "grg",
+    "rcr",
+    "grg"
+  ],
+  "key": {
+    "c": { "item": "sanitypd:inner_core" },
+    "g": { "item": "minecraft:glass" },
+    "r": { "item": "minecraft:rotten_flesh" }
+  },
+  "result": {
+    "item": "sanitypd:thought_instrumental_aggression",
+    "count": 1
+  }
+}

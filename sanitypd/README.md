@@ -3,6 +3,8 @@
 > ## ⚠️ ALPHA TEST BUILD
 > This is an **alpha test version**. Mechanics, numbers, config keys and commands may still change between
 > builds, and things may be unbalanced or broken. Back up your worlds before installing it.
+> This build is the **first part test build**: the thought chain (part one) and the memory-fragment tapes
+> are in; the boss stages and the rest of the story are not.
 > Feedback and bug reports are very welcome — see [Reporting bugs](#reporting-bugs).
 
 **A sanity system for Minecraft — new mechanics, items, mobs and commands built on top of the original Sanity mod.**
@@ -171,7 +173,7 @@ This project also ships an **optional, separate** diagnostic mod, `sanityprobe`.
 and changes nothing about the game. It exists so that behaviour only observable on a real client can actually
 be verified — a dedicated server cannot prove anything about rendering, HUD or animation.
 
-**Installing it:** drop `sanityprobe-mc1.20-2.11.2.jar` into `mods/` next to this mod. No setup is required.
+**Installing it:** drop `sanityprobe-mc1.20-2.18.0.jar` into `mods/` next to this mod. No setup is required.
 Remove the jar when you are done — nothing depends on it.
 
 **Where the information goes:**
@@ -216,17 +218,40 @@ post-processing, sound).
 ## Reporting bugs
 
 Please include your Minecraft, Forge and GeckoLib versions, the mod version, and the relevant part of
-`logs/latest.log` or the crash report, and open an issue on the project page: <https://github.com/Yaojihua/sanity-psychological-devastation>
+`logs/latest.log` or the crash report, and open an issue on the project page:
+<https://github.com/Yaojihua/sanity-psychological-devastation>
 
 ## Credits
 
 * Original project: **Sanity: Descent Into Madness** by **croissantnova** — MIT. Mechanics are derived from it;
   the original license and copyright notices are preserved in full.
-* Original art / audio collaboration: **toujourspareil**, **Zapsplat**.
+* Original art / audio collaboration: **toujourspareil**, **Zapsplat**. Sound effects inherited from the
+  original project keep their own terms; the Zapsplat standard license is linked in
+  `NOTICE-sanitypd.txt` inside the jar.
 * This version: **Yaojihua**.
 * **AI-assisted development:** parts of this mod were developed with **DeepSeek Harness (dsh)**.
   All design decisions, in-game testing and final review were done by the author.
 
+**Sound effects added by this project.** Every file, its author and its license are listed in
+[`ASSETS-CREDITS.md`](ASSETS-CREDITS.md). Two entries there matter to anyone redistributing this mod:
+
+* **Attribution required — CC-BY.** The horror sting 「恐怖」 is by **Taira Komori**, licensed **CC-BY**, via
+  Freesound (source <http://tairakomori.jpn.org/freesounden.html>, license text
+  <https://creativecommons.org/licenses/by/4.0/>). It was **modified** for this mod — trimmed and converted
+  to OGG — and that has to be said alongside the credit.
+* **Courtesy credit — CC0.** The tape sounds — 「Charged laser」 by **LegoLunatic**, 「盒式磁带机弹出」 by
+  **jpkweli** and 「空白磁带嘶嘶噪声」 by **骨质人** — are released under **CC0**, which requires no
+  attribution and allows commercial use. They are credited here because it is the right thing to do, not
+  because the license asks for it.
+
+**This mod is an unofficial derivative of the original project, and is not affiliated with, endorsed by or
+supported by its author.** Bug reports about this mod belong on this project's issue tracker.
+
 ## License
 
-MIT — see [LICENSE](LICENSE). Redistribution must keep the original author's attribution.
+The **code** of this mod is MIT — see [LICENSE](LICENSE), which also carries the original author's copyright
+line. Redistribution must keep the original author's attribution.
+
+**All other assets — textures, models, animations and the story text — are all rights reserved** unless a
+file says otherwise. A permissive code license does not cover them, and it does not cover the sound effects
+either: those keep the licenses listed in [`ASSETS-CREDITS.md`](ASSETS-CREDITS.md).

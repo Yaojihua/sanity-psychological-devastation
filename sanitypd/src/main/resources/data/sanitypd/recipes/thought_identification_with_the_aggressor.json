@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gcg",
+    "sxs",
+    "gig"
+  ],
+  "key": {
+    "c": { "item": "sanitypd:inner_clump" },
+    "g": { "item": "minecraft:glass" },
+    "i": { "item": "minecraft:diamond" },
+    "s": { "item": "sanitypd:inner_shard" },
+    "x": { "item": "sanitypd:inner_core" }
+  },
+  "result": {
+    "item": "sanitypd:thought_identification_with_the_aggressor",
+    "count": 1
+  }
+}

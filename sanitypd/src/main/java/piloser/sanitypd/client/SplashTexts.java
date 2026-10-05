@@ -89,19 +89,32 @@ public final class SplashTexts
     /**
      * Reads the raw splash text out of a {@link SplashRenderer} so the player name can be substituted.
      *
-     * <p>{@code splash} is a {@code private final String} with no getter, so reflection is required.
-     * If it cannot be read this returns {@code null} and the caller passes the text through unchanged;
-     * when reflection fails it falls back to searching {@code toString()} for the placeholder.
+     * <p>{@code splash} is a {@code private final String} with no getter, so reflection is required - but the
+     * field is located <b>by type, never by a literal name</b>. The first version asked for
+     * {@code getDeclaredField("splash")}, which is exactly right under the dev environment's official mappings
+     * and always throws on a production client, where vanilla members carry SRG names ({@code f_93769_}-style).
+     * The throw was swallowed, the {@code toString()} fallback cannot see a placeholder either, and the result
+     * was that {@code {player}} reached the title screen unsubstituted ("Do you like this vessel called
+     * {player}?"). The probe found it by reading this very field by type and logging
+     * {@code [SPLASH-26-SAMPLE] ... placeholderLeft=3} (2026-10-04); a project check run before a release
+     * fails if a literal vanilla field lookup comes back.
+     *
+     * <p>If the field cannot be read this returns {@code null} and the caller passes the text through unchanged.
      */
     public static String rawText(SplashRenderer renderer)
     {
         try
         {
-            Field f = SplashRenderer.class.getDeclaredField("splash");
-            f.setAccessible(true);
-            Object value = f.get(renderer);
-            if (value instanceof String s)
-                return s;
+            for (Field candidate : SplashRenderer.class.getDeclaredFields())
+            {
+                if (candidate.getType() != String.class)
+                    continue;
+
+                candidate.setAccessible(true);
+
+                if (candidate.get(renderer) instanceof String s)
+                    return s;
+            }
         }
         catch (Throwable ignored)
         {

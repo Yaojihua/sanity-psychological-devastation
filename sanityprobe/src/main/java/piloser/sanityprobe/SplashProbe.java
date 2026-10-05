@@ -215,9 +215,22 @@ public final class SplashProbe
     {
         try
         {
-            Field field = SplashManager.class.getDeclaredField("splashes");
-            field.setAccessible(true);
-            return (List<String>) field.get(manager);
+            // Fixed in v2.15.0: the field is located by *type*, never by a literal name. A literal name
+            // such as "splashes" is not touched by reobf, so on a production client (SRG names) it never
+            // resolved and this check logged "cannot read the SplashManager.splashes field" every time.
+            for (Field candidate : SplashManager.class.getDeclaredFields())
+            {
+                if (!List.class.isAssignableFrom(candidate.getType()))
+                    continue;
+
+                candidate.setAccessible(true);
+                Object value = candidate.get(manager);
+
+                if (value instanceof List<?> list)
+                    return (List<String>) list;
+            }
+
+            return null;
         }
         catch (Throwable t)
         {
@@ -233,10 +246,20 @@ public final class SplashProbe
 
         try
         {
-            Field f = SplashRenderer.class.getDeclaredField("splash");
-            f.setAccessible(true);
-            Object v = f.get(renderer);
-            return v instanceof String s ? s : null;
+            // Fixed in v2.15.0: same reason as readPool - located by type, not by a literal name.
+            for (Field candidate : SplashRenderer.class.getDeclaredFields())
+            {
+                if (candidate.getType() != String.class)
+                    continue;
+
+                candidate.setAccessible(true);
+                Object value = candidate.get(renderer);
+
+                if (value instanceof String s)
+                    return s;
+            }
+
+            return null;
         }
         catch (Throwable t)
         {

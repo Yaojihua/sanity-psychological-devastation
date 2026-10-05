@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "aga",
+    "gcg",
+    "aga"
+  ],
+  "key": {
+    "a": { "item": "minecraft:amethyst_shard" },
+    "c": { "item": "sanitypd:inner_core" },
+    "g": { "item": "minecraft:gold_ingot" }
+  },
+  "result": {
+    "item": "sanitypd:psychic_controller",
+    "count": 1
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gpg",
+    "wcw",
+    "glg"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "p": {
+      "type": "sanitypd:potion",
+      "potions": [
+        "minecraft:healing",
+        "minecraft:strong_healing"
+      ]
+    },
+    "w": {
+      "tag": "minecraft:wool"
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    },
+    "l": {
+      "item": "minecraft:iron_leggings"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_stress_induced_analgesia",
+    "count": 1
+  }
+}

@@ -44,6 +44,32 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
      */
     private float m_psychicResistance;
 
+    /**
+     * Extra sanity cap granted by the thought chain, in points (0 when no mindset raises the cap).
+     *
+     * <p>Kept as a field rather than looked up on demand: {@link #getMaxSanity()} runs several times per tick
+     * (HUD sync, thresholds, every {@code getSanity()} clamp), and a capability lookup per call would put the
+     * chain in the middle of the hottest path in this class. {@code SanityProcessor} refreshes it once a tick.
+     */
+    private float m_capBonus;
+
+    /**
+     * Extra psychic resistance granted by the thought chain, as a fraction (0 when inactive).
+     *
+     * <p>Not synced, and its changes do not mark the capability dirty: nothing on the client reads it, and the
+     * value flips whenever sanity crosses the threshold the effect names, which would otherwise push a packet
+     * every time the player's sanity wobbled across that line.
+     */
+    private float m_resistBonus;
+
+    /**
+     * Fraction of a garland durability point saved up by the composure mindset, in [0, 1).
+     *
+     * <p>Not persisted on purpose: it is worth less than one point of durability, and losing it on a reload is
+     * invisible next to the ticks the garland already survived.
+     */
+    private float m_garlandWearCredit;
+
     private final int[] m_cds = new int[ActiveSanitySources.AMOUNT];
     private final Map<Integer, Integer> m_itemCds = new HashMap<>();
     private final Map<Integer, Integer> m_brokenBlocksCds = new HashMap<>();
@@ -120,6 +146,7 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
         buf.writeFloat(m_passive);
         buf.writeInt(m_maniaTicks);
         buf.writeFloat(m_psychicResistance);
+        buf.writeFloat(m_capBonus);
     }
 
     public void deserialize(FriendlyByteBuf buf)
@@ -128,6 +155,7 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
         m_passive = buf.readFloat();
         m_maniaTicks = buf.readInt();
         setPsychicResistance(buf.readFloat());
+        m_capBonus = buf.readFloat();
         // The server already sent the real values, so the pending cap-based initialization must be
         // cleared: otherwise the next getSanity() call would run ensureInitialized() and overwrite
         // them with a full bar, briefly showing 100 sanity on the client HUD and splash text.
@@ -148,7 +176,7 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
     public float getMaxSanity()
     {
         if (m_owner instanceof Player)
-            return MAX_SANITY;
+            return MAX_SANITY + m_capBonus;
         if (m_owner != null && m_owner.getAttributes() != null)
             return Math.max(1.0f, m_owner.getMaxHealth());
         return MAX_SANITY;
@@ -287,6 +315,55 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
         if (m_psychicResistance != clamped)
             m_dirty = true;
         m_psychicResistance = clamped;
+    }
+
+    /** Extra sanity cap in points; see {@link #m_capBonus}. */
+    public float getSanityCapBonus()
+    {
+        return m_capBonus;
+    }
+
+    /**
+     * Sets the extra sanity cap. Called once a tick by {@code SanityProcessor}.
+     *
+     * <p>Losing the bonus also drops the stored sanity down to the new cap. Without that, sanity above the cap
+     * would sit invisibly in the field and come back the moment the mindset returned - a player could bank
+     * sanity by equipping and unequipping the thought.
+     */
+    public void setSanityCapBonus(float value)
+    {
+        float clamped = Math.max(0f, value);
+
+        if (m_capBonus == clamped)
+            return;
+
+        m_capBonus = clamped;
+        m_sanityVal = Math.min(m_sanityVal, getMaxSanity());
+        m_dirty = true;
+    }
+
+    /** See {@link #m_resistBonus}; refreshed once a tick by {@code SanityProcessor}. */
+    public void setPsychicResistBonus(float value)
+    {
+        m_resistBonus = Math.max(0f, value);
+    }
+
+    @Override
+    public float getEffectivePsychicResistance()
+    {
+        return m_psychicResistance + m_resistBonus;
+    }
+
+    /** See {@link #m_garlandWearCredit}. */
+    public float getGarlandWearCredit()
+    {
+        return m_garlandWearCredit;
+    }
+
+    /** See {@link #m_garlandWearCredit}; callers keep it inside [0, 1). */
+    public void setGarlandWearCredit(float value)
+    {
+        m_garlandWearCredit = value;
     }
 
     public int getConfusionTicks()

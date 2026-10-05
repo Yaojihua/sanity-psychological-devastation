@@ -1,6 +1,8 @@
 package piloser.sanitypd.entity.goal;
 
 import piloser.sanitypd.capability.SanityProvider;
+import piloser.sanitypd.item.ItemRegistry;
+import piloser.sanitypd.thought.ThoughtEffects;
 import piloser.sanitypd.client.render.layer.Blackout;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.goal.AvoidEntityGoal;
@@ -26,7 +28,12 @@ public class AvoidInsanePlayerGoal extends AvoidEntityGoal<Player>
             AtomicBoolean flag = new AtomicBoolean(false);
             player.getCapability(SanityProvider.CAP).ifPresent(s ->
             {
-                flag.set(s.getMadness() >= Blackout.THRESHOLD);
+                // Duplicity: an equipped thought stops friendly creatures from fleeing, so the player is no
+                // longer a target worth avoiding even at the same madness. This is the half of the effect
+                // that the interaction guards in MixinAnimal cannot cover - the animal leaves before any
+                // interaction is attempted.
+                flag.set(s.getMadness() >= Blackout.THRESHOLD
+                        && !ThoughtEffects.isEquipped(player, ItemRegistry.THOUGHT_DUPLICITY.get()));
             });
             return flag.get();
         });

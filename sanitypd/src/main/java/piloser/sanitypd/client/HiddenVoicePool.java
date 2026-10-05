@@ -7,12 +7,14 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import piloser.sanitypd.SanityMod;
+import piloser.sanitypd.mixin.MixinServerPlayerSeenCredits;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -32,6 +34,10 @@ import java.util.Objects;
  * ({@value #SAVE_FILE_NAME}). Storing it there means it survives a restart, never leaks into another save,
  * and travels with a copied save. A remote or dedicated server has no local save folder, so the pool stays
  * locked there.
+ *
+ * <p>A save that <b>already carries vanilla's own record</b> counts as unlocked too: a player who beat the
+ * dragon before installing this mod has no marker file, but vanilla saved {@code seenCredits} in his player
+ * data, so the pool adopts that instead of staying locked forever (see {@link #vanillaSaysPoemSeen}).
  *
  * <h2>How the lines are used</h2>
  * They are merged into the severe tier by {@link MentalHintManager#pickHintForDraw(int)} and by nothing
@@ -124,6 +130,14 @@ public final class HiddenVoicePool
             s_loadedSaveRoot = root;
             s_saveRoot = root;
             s_unlocked = readMarker(root);
+
+            // Adopt vanilla's record when this save has none of our own: the player may have beaten the
+            // dragon long before the mod was installed, and vanilla already saved that fact.
+            if (!s_unlocked && vanillaSaysPoemSeen(mc))
+            {
+                SanityMod.LOGGER.info("[THIRD-VOICE] vanilla records the poem as seen; unlocking this save");
+                markPoemSeen();
+            }
             SanityMod.LOGGER.info("[THIRD-VOICE] save changed; pool is {} for this save",
                     s_unlocked ? "unlocked" : "locked");
         }
@@ -176,6 +190,41 @@ public final class HiddenVoicePool
             SanityMod.LOGGER.warn("[THIRD-VOICE] could not write the save marker, the pool stays unlocked "
                     + "for this session only: {}", e.toString());
         }
+    }
+
+    /**
+     * Whether vanilla's own record says this player has watched the end poem.
+     *
+     * <p>The flag lives on {@code ServerPlayer} (private, no getter) and is <b>only</b> reachable in
+     * singleplayer: the local player's real entity is the integrated server's {@code ServerPlayer}, which the
+     * client can walk to. Vanilla never sends this flag to clients, so on a remote or dedicated server there
+     * is nothing to read and the pool stays locked - the same limitation it had before, now stated rather
+     * than implied.
+     *
+     * <p>Never throws: a missing field, a mixin that failed to apply or a half-started server must not break
+     * the client tick. A failure means "not seen", which is the old behaviour.
+     */
+    private static boolean vanillaSaysPoemSeen(Minecraft mc)
+    {
+        try
+        {
+            IntegratedServer server = mc.getSingleplayerServer();
+
+            if (server == null)
+                return false;
+
+            for (ServerPlayer player : server.getPlayerList().getPlayers())
+            {
+                if (((MixinServerPlayerSeenCredits) player).sanitypd$hasSeenCredits())
+                    return true;
+            }
+        }
+        catch (Throwable t)
+        {
+            SanityMod.LOGGER.warn("[THIRD-VOICE] could not read vanilla's own poem flag: {}", t.toString());
+        }
+
+        return false;
     }
 
     /** Save folder of the local world, or {@code null} on a remote or dedicated server. */

@@ -1,0 +1,33 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gpg",
+    "scs",
+    "gig"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "p": {
+      "type": "sanitypd:potion",
+      "potions": [
+        "minecraft:harming",
+        "minecraft:strong_harming"
+      ]
+    },
+    "s": {
+      "item": "minecraft:spider_eye"
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    },
+    "i": {
+      "item": "minecraft:iron_sword"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_irritability",
+    "count": 1
+  }
+}

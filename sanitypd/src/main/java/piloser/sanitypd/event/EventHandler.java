@@ -24,6 +24,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -54,6 +55,10 @@ import net.minecraftforge.event.level.SleepFinishedTimeEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.server.ServerLifecycleHooks;
+import piloser.sanitypd.net.ThoughtChainPacket;
+import piloser.sanitypd.thought.IThoughtChain;
+import piloser.sanitypd.thought.MadnessCombat;
+import piloser.sanitypd.thought.ThoughtChainProvider;
 
 public class EventHandler
 {
@@ -63,6 +68,7 @@ public class EventHandler
         event.register(ISanity.class);
         event.register(IInnerEntityCap.class);
         event.register(ISanityLevelChunk.class);
+        event.register(IThoughtChain.class);
     }
 
     @SubscribeEvent
@@ -74,12 +80,55 @@ public class EventHandler
             event.addCapability(SanityProvider.KEY, new SanityProvider(living));
         else if (event.getObject() instanceof InnerEntity)
             event.addCapability(InnerEntityCapImplProvider.KEY, new InnerEntityCapImplProvider());
+
+        // The thought chain is player data only (see IThoughtChain): no mob needs eighteen slots, and this
+        // capability is what carries the chain across death.
+        if (event.getObject() instanceof Player player)
+            event.addCapability(ThoughtChainProvider.KEY, new ThoughtChainProvider(player));
     }
 
     @SubscribeEvent
     public void attachLevelCaps(final AttachCapabilitiesEvent<LevelChunk> event)
     {
         event.addCapability(SanityLevelChunkProvider.KEY, new SanityLevelChunkProvider());
+    }
+
+    /**
+     * The thought chain must survive death: the spec is explicit that thoughts never drop, and the chain is
+     * player data rather than part of the inventory. Everything else this mod keeps on a player is
+     * deliberately rebuilt on respawn, so the copy is scoped to the chain alone.
+     *
+     * <p>{@code reviveCaps}/{@code invalidateCaps} are required around the copy: once the clone event fires,
+     * the outgoing player's provider is already invalidated and a lookup on it would quietly return empty.
+     */
+    @SubscribeEvent
+    public void cloneThoughtChain(final PlayerEvent.Clone event)
+    {
+        event.getOriginal().reviveCaps();
+        event.getOriginal().getCapability(ThoughtChainProvider.CAP).ifPresent(old ->
+                event.getEntity().getCapability(ThoughtChainProvider.CAP).ifPresent(fresh -> fresh.copyFrom(old)));
+        event.getOriginal().invalidateCaps();
+    }
+
+    /** Pushes the counts on join, so a chain filled in an earlier session is not shown as "not equipped". */
+    @SubscribeEvent
+    public void syncThoughtChainOnJoin(final PlayerEvent.PlayerLoggedInEvent event)
+    {
+        syncThoughtChain(event.getEntity());
+    }
+
+    /** Same push after a respawn, where the counts come from the copy made in {@link #cloneThoughtChain}. */
+    @SubscribeEvent
+    public void syncThoughtChainOnRespawn(final PlayerEvent.PlayerRespawnEvent event)
+    {
+        syncThoughtChain(event.getEntity());
+    }
+
+    private static void syncThoughtChain(Player player)
+    {
+        if (player instanceof ServerPlayer serverPlayer)
+            serverPlayer.getCapability(ThoughtChainProvider.CAP)
+                    .ifPresent(chain -> ThoughtChainPacket.send(serverPlayer, chain));
     }
 
     @SubscribeEvent
@@ -126,7 +175,13 @@ public class EventHandler
     @SubscribeEvent
     public void onLivingHurtAnimal(final LivingHurtEvent event)
     {
-        if (!(event.getEntity() instanceof Animal animal))
+        // "Friendly creatures" is wider than vanilla's Animal: a villager and a wandering trader
+        // are peaceful too, and the Law of the Jungle thought promises its penalty applies to them.
+        // Upstream only tested `instanceof Animal`, and Villager extends AbstractVillager -> AgeableMob, so
+        // hitting a villager cost nothing at all - the owner reported that as a bug on 2026-10-03.
+        //
+        // AbstractVillager (not Villager) so the wandering trader is covered by the same rule.
+        if (!(event.getEntity() instanceof Animal) && !(event.getEntity() instanceof AbstractVillager))
             return;
         if (!(event.getSource().getEntity() instanceof ServerPlayer player))
             return;
@@ -135,7 +190,51 @@ public class EventHandler
         // hit has already been counted.
         if (SanityCombat.isSanityDamage(event.getSource()))
             return;
-        SanityProcessor.handlePlayerHurtAnimal(player, animal, event.getAmount());
+        SanityProcessor.handlePlayerHurtAnimal(player, event.getEntity(), event.getAmount());
+    }
+
+    /**
+     * The madness thoughts that react to a hit landing, plus the window the ones that react to being hit
+     * need.
+     *
+     * <h2>Two directions, one listener</h2>
+     * A hit is both "you struck something" (Catharsis adds its drain) and "something was struck by you"
+     * (Identification with the Aggressor pays out if that something is the entity that last hurt you).
+     * Handling both here keeps the exclusion rule in one place: the mod's own damage types never count,
+     * exactly as in {@link #onLivingHurtAnimal}.
+     *
+     * <h2>Why the aggressor bonus is applied at the lowest priority</h2>
+     * The bonus multiplies the damage <b>this</b> hit deals, so it has to see the amount other listeners
+     * have finished with - the mod's psychic conversion runs first and can zero the physical part. Applying
+     * it early would multiply a number that is about to be replaced.
+     */
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+    public void onLivingHurtMadness(final LivingHurtEvent event)
+    {
+        Entity victim = event.getEntity();
+        Entity attacker = event.getSource().getEntity();
+
+        // Being hit by a living attacker opens the Fight or Flight / Aggressor windows. Environmental
+        // damage has no attacker and is ignored (both thoughts are about being struck by something).
+        if (victim instanceof ServerPlayer hurtPlayer && attacker != null && !SanityCombat.isSanityDamage(event.getSource()))
+            MadnessCombat.onPlayerHurt(hurtPlayer, attacker);
+
+        if (!(attacker instanceof ServerPlayer player))
+            return;
+
+        // A shadow weapon's own psychic add-on is part of the hit that already counted.
+        if (SanityCombat.isSanityDamage(event.getSource()))
+            return;
+
+        if (victim instanceof LivingEntity target)
+        {
+            MadnessCombat.catharsisDrain(player, target);
+
+            float bonus = MadnessCombat.aggressorBonus(player, target);
+
+            if (bonus > 0f)
+                event.setAmount(event.getAmount() * (1f + bonus));
+        }
     }
 
     @SubscribeEvent
@@ -212,7 +311,24 @@ public class EventHandler
     public void onPlayerLoggedOut(final PlayerEvent.PlayerLoggedOutEvent event)
     {
         if (event.getEntity() instanceof ServerPlayer sp)
+        {
             InnerEntitySpawner.PLAYER_TO_SPAWN_TIMEOUT.remove(sp.getUUID());
+            piloser.sanitypd.thought.MadnessCombat.forget(sp);
+            piloser.sanitypd.thought.HintState.forget(sp);
+            piloser.sanitypd.thought.StressAnalgesia.forget(sp);
+        }
+    }
+
+    // ---- Stress-Induced Analgesia: being hurt restores health below 60% sanity ----
+    //
+    // Hooked to LivingHurtEvent for the same reason the animal and psychic rules are (see the note above
+    // onLivingHurtAnimal): it fires while the original amount is still readable and before the damage lands,
+    // and it is the event the rest of this mod's hurt rules already share.
+    @SubscribeEvent
+    public void onLivingHurtAnalgesia(final LivingHurtEvent event)
+    {
+        if (event.getEntity() instanceof ServerPlayer sp)
+            piloser.sanitypd.thought.StressAnalgesia.onHurt(sp, event.getAmount());
     }
 
     // ---- psychic / true damage / negative-effect combat rules (server side) ----

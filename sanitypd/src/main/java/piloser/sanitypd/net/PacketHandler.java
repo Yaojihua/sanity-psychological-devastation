@@ -25,5 +25,25 @@ public class PacketHandler
                 InnerEntityCapImplPacket::encode,
                 InnerEntityCapImplPacket::decode,
                 InnerEntityCapImplPacket::handle);
+        CHANNEL_INSTANCE.registerMessage(
+                packetId++,
+                ThoughtChainPacket.class,
+                ThoughtChainPacket::encode,
+                ThoughtChainPacket::decode,
+                ThoughtChainPacket::handle);
+        // Client to server: whether a non-mild inner line is on screen (Command Hallucination).
+        CHANNEL_INSTANCE.registerMessage(
+                packetId++,
+                HintStatePacket.class,
+                HintStatePacket::encode,
+                HintStatePacket::decode,
+                HintStatePacket::handle);
+        // Client to server: whether the memory tape is being watched (creative-like protection).
+        CHANNEL_INSTANCE.registerMessage(
+                packetId++,
+                MemoryTapePacket.class,
+                MemoryTapePacket::encode,
+                MemoryTapePacket::decode,
+                MemoryTapePacket::handle);
     }
 }

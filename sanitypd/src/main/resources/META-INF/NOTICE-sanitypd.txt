@@ -12,6 +12,13 @@ The full text of the original license is in the LICENSE file next to this notice
 This modified version is likewise released under the MIT License; the original
 author's copyright and license notices are preserved in full.
 
+The MIT text in the LICENSE file carries the original author's copyright line,
+because that is the notice the upstream project shipped. The copyright of the
+changes made here is recorded on the line below.
+
+    Modifications and additions: Copyright (c) 2025-2026 Yaojihua,
+    released under the same MIT License.
+
 --------------------------------------------------------------------------------
 Summary of changes relative to the original
 --------------------------------------------------------------------------------
@@ -49,29 +56,32 @@ ITEMS AND ENCHANTMENTS
  9. Off-hand shield takes priority over shadow-weapon charging when both are held.
 
 ENTITIES AND AI
-10. Three inner entities with GeckoLib models, animations, textures and self-emissive
-    eye layers; individual sounds for ambient, roar, hurt and death.
-11. Reworked screaming-crawler tracking and pathing: A* global routing, self-driven
-    movement, jumping and step-up, stuck detection, and two sanity gates (its blast
-    stops breaking blocks above 50% sanity; it refuses to track a player above 75%).
-12. Full blackout reskins with glowing eyes for the passive animals.
+ 10. Three inner entities with GeckoLib models, animations, textures and self-emissive
+     eye layers; individual sounds for ambient, roar, hurt and death.
+ 11. Reworked screaming-crawler tracking and pathing: A* global routing, self-driven
+     movement, jumping and step-up, stuck detection, and two sanity gates (its blast
+     stops breaking blocks above 50% sanity; it refuses to track a player above 75%).
+ 12. Full blackout reskins with glowing eyes for the passive animals.
 
 PRESENTATION
-13. Sanity indicator with configurable position and scale, sanity value shown while
-    sneaking, three configurable inner-monologue pools plus a separate expiry-warning
-    pool, an immediate-hint preview command, mania edge and pulse overlays, blood
-    tendril overlays, two post-processing shaders, and a heartbeat sound layer.
-14. Simplified Chinese language file throughout (items, effects, tooltips, subtitles,
-    command feedback) with translated config comments; both languages ship the same
-    key set.
-15. Optional Jade integration: shows "Sanity: current/max" under the health bar.
+ 13. Sanity indicator with configurable position and scale, sanity value shown while
+     sneaking, three configurable inner-monologue pools plus a separate expiry-warning
+     pool, an immediate-hint preview command, mania edge and pulse overlays, blood
+     tendril overlays, two post-processing shaders, and a heartbeat sound layer.
+ 14. Simplified Chinese language file throughout (items, effects, tooltips, subtitles,
+     command feedback) with translated config comments; both languages ship the same
+     key set.
+ 15. Optional Jade integration: shows "Sanity: current/max" under the health bar.
 
 COMMANDS
-16. New commands: /sanity get | state | psychic | truedamage | set | add |
-    config reload | innerspawn | hint <tier> add|remove|list|clear|show |
-    hint expiry ... | resist set|add|subtract|clear|get.
-17. The title-screen splash pool gains a small set of extra lines; the vanilla lines
-    are all kept.
+ 16. New commands: /sanity get | state | psychic | truedamage | set | add |
+     config reload | innerspawn | hint <tier> add|remove|list|clear|show |
+     hint expiry ... | resist set|add|subtract|clear|get.
+ 17. The title-screen splash pool gains a small set of extra lines; the vanilla lines
+     are all kept.
+
+Later additions: the thought-chain items and the memory-fragment tape sequence are
+described in the project's README and changelog.
 
 --------------------------------------------------------------------------------
 Original project credits (preserved)
@@ -85,14 +95,16 @@ Parts of this mod were developed with AI assistance (DeepSeek Harness, "dsh").
 All design decisions, in-game testing and final review were done by the author.
 
 --------------------------------------------------------------------------------
-Other assets (moved here from the LICENSE file)
+Asset licenses
 --------------------------------------------------------------------------------
-The LICENSE file is now the verbatim MIT text so that GitHub and CurseForge can
-detect the license automatically. The statements that used to sit around it are
-kept here, word for word:
+Sound effects retain their respective licenses.
 
-    Sound effects retain their respective license which can be found at:
-    https://www.zapsplat.com/license-type/standard-license/
+For sounds inherited from the original project, the applicable terms are the Zapsplat
+standard license: https://www.zapsplat.com/license-type/standard-license/
 
-    All rights reserved for all other assets
+For sounds added by this project, the source site, the uploader and the license of
+each file are listed in ASSETS-CREDITS.md in the repository. Anyone redistributing
+this mod must keep that list with it, because attribution-required licenses are only
+satisfied by naming the uploader and the license itself, not the website alone.
 
+All rights reserved for all other assets.

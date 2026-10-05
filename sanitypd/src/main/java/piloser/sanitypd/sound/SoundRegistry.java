@@ -30,6 +30,17 @@ public class SoundRegistry
     /** Self-destruct. */
     public static final RegistryObject<SoundEvent> SCREAMING_CRAWLER_EXPLODE = registerSoundEvent("screaming_crawler_explode");
 
+    // ---- Lost memory fragment (story item, part 1) ----
+    // Both are played client-side only, anchored to the listener, so the mono rule of the crawler sounds
+    // above does not apply: the charge clip is stereo and stays stereo (it is heard by the user alone),
+    // while the hiss bed is the owner's own mono recording.
+    /** Charge-up clip: starts one second into the hold and ends exactly when the tape screen opens. */
+    public static final RegistryObject<SoundEvent> MEMORY_CHARGE = registerSoundEvent("memory_charge");
+    /** Blank-tape hiss, looped for as long as the tape screen is up. */
+    public static final RegistryObject<SoundEvent> MEMORY_TAPE_HISS = registerSoundEvent("memory_tape_hiss");
+    /** The tape-eject click that announces every script line (the first half of the split eject recording). */
+    public static final RegistryObject<SoundEvent> MEMORY_TAPE_EJECT = registerSoundEvent("memory_tape_eject");
+
     public static RegistryObject<SoundEvent> registerSoundEvent(String name)
     {
         return DEFERRED_REGISTER.register(name, () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(SanityMod.MODID, name)));

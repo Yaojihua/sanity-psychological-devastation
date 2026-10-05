@@ -35,15 +35,17 @@ public class SanityProbe
     /**
      * Probe version - must match `mod_version` in `gradle.properties` and the jar file name.
      *
-     * <p>This is a hand-maintained copy and has already drifted once: a build shipped with this constant
-     * one release behind, so the armed banner and every log line reported the previous version and a
-     * screenshot could not identify the build. Bump it together with `gradle.properties` and the jar name,
-     * and check the armed line after building.
+     * <p>This is a hand-maintained copy and has already drifted twice: builds shipped with this constant
+     * one release behind (2.16.0 and 2.16.1 both reported {@code v2.15.0}), so the armed banner and every
+     * log line named the previous version and a screenshot could not identify the build. Bump it together
+     * with `gradle.properties` and the jar name, then run the probe version check script after building -
+     * that gate compares this constant, `gradle.properties`, the jar file name and the constant actually
+     * compiled into the jar, so the drift can no longer ship silently.
      */
-    public static final String VERSION = "2.11.2";
+    public static final String VERSION = "2.18.0";
 
     /** Content revision of this build; printed in the HUD header only, to identify a build in a screenshot. */
-    public static final String ROUND_TAG = "egg-side-fix";
+    public static final String ROUND_TAG = "depersonalization-44";
 
     public SanityProbe()
     {
@@ -60,11 +62,13 @@ public class SanityProbe
         MinecraftForge.EVENT_BUS.register(EggProbe.class);
         // ClientProbe registers itself via @Mod.EventBusSubscriber(value = Dist.CLIENT); client side only
         // MentalHintProbe does the same (group H - the three inner-voice tiers)
-        // HintWindowProbe does the same (round 28 - the pre-damage and immunity-expiry warning windows)
+        // HintWindowProbe does the same (the pre-damage and immunity-expiry warning windows)
         MinecraftForge.EVENT_BUS.register(HintWindowProbe.class);
-        // CrawlerSanityProbe does the same (round 29 - the 50% / 75% crawler gates and the boss exemption)
+        // CrawlerSanityProbe does the same (the 50% / 75% crawler gates and the boss exemption)
         MinecraftForge.EVENT_BUS.register(CrawlerSanityProbe.class);
         // HiddenVoiceProbe does the same: the extra inner-voice pool, its per-save unlock and its sound
         MinecraftForge.EVENT_BUS.register(HiddenVoiceProbe.class);
+        // ThoughtChainProbe does the same (this round - the thought chain's window and its tooltips; it names
+        // no sanitypd type on purpose, see its javadoc)
     }
 }

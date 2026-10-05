@@ -1,6 +1,6 @@
 package piloser.sanitypd.item;
 
-import piloser.sanitypd.client.ItemTooltipHelper;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -106,7 +106,7 @@ public class ShadowAxeItem extends AxeItem implements IShadowWeapon
         // Attack damage and attack speed lines come from the vanilla attribute system. The "psychic
         // damage" line is inserted by ItemTooltipHelper below the attribute lines after the tooltip
         // is assembled (reusing the attribute line blue), so it is not added here.
-        ItemTooltipHelper.showTooltipOnShift(tooltip, "shadow_axe");
+        ItemTooltips.showTooltipOnShift(tooltip, "shadow_axe");
     }
 
     /** No Mending (this covers the enchanting table path; the anvil path is blocked by EventHandler#onAnvilUpdate). */

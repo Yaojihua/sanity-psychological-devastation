@@ -17,7 +17,7 @@
 | **Mod loader** | Forge |
 | **Game version** | 1.20.1（1.20 亦可） |
 | **License** | MIT（**必须保留上游 croissantnova 的署名**，见下方 Credits） |
-| **Contact / Issues** | `https://github.com/Yaojihua/sanity-psychological-devastation` |
+| **Contact / Issues** | 项目页 / Project page: `https://github.com/Yaojihua/sanity-psychological-devastation` |
 | **Release type** | **Beta / Alpha** ← 当前务必选 **Alpha** |
 
 ---
@@ -43,6 +43,15 @@ REQUIREMENTS
 • Jade — optional, adds a sanity line to its tooltip
 
 FEATURES
+• The Thought Chain (part one): the Psychic Controller opens your own eighteen-slot chain — two rows of
+  nine, Worldview and Methodology. Six counting types (Composure, Madness, Servitude, Chaos Restraint,
+  Endurance, Hallucination) and sixteen thoughts, with tiered effects, mindset bonuses and a Mindset
+  Trends panel. Hold Shift in a thought's tooltip for the full tier table.
+• Lost memory fragments (four of them): hold right click to charge with the bow-pull pose, and a tape
+  plays — white lines arriving blurred and resolving into focus, trembling, over a running noise band and
+  dropout lines that never stop. The first viewing of a fragment cannot be skipped; after that any key
+  leaves it. Single player pauses the game while a tape plays, and on a server you are protected from
+  damage the way creative mode protects you.
 • Point-based sanity: players cap at 100, other mobs cap at their max health; every living entity has sanity.
 • Passive and active sanity sources: light, darkness, weather, water, hunger, nearby monsters, pets, music,
   blocks underfoot, sleeping, breeding, trading, fishing, shearing, advancements, eating and more.
@@ -75,7 +84,7 @@ FEATURES
 • Fully commented config: passive and active sources, item and block lists, multiplayer and client options.
 
 COMPANION TOOL: SanityPD PROBE (思维探针 / "Mind Probe")
-An optional, separate diagnostic mod (sanityprobe-mc1.20-2.11.2.jar). It changes nothing about the game and
+An optional, separate diagnostic mod (sanityprobe-mc1.20-2.18.0.jar). It changes nothing about the game and
 is not needed to play; it exists so client-side behaviour (rendering, HUD, animation) can be verified.
   • Install: drop the jar into mods/ next to the main mod. Delete it when done.
   • Read: <instance>/logs/sanityprobe.log (one tagged line per event) — also mirrored into latest.log as [PROBE].
@@ -91,20 +100,33 @@ MODPACKS
 You are free to include this mod in modpacks.
 
 ROADMAP (what is still coming)
-This build is the FRAMEWORK, not the finished game. Still to come:
+This build is the FIRST PART of a larger mod, not the finished game. The framework is playable, the first
+part of the thought chain and the memory-fragment tapes are in, and these are still to come:
+• The rest of the thought chain — the remaining sets of thoughts.
+• The rest of the story, and the final encounter the whole sanity system is being built toward.
 • An equipment system — thinking-enhancement gear and self-imposed restrictions that change how sanity
   works for you.
-• A final encounter — the endgame the whole sanity system is being built toward.
 • More inner entities, items and sanity sources.
-The alpha label reflects exactly this.
+No dates are promised for any of it.
 
 CREDITS
 • Original project: Sanity: Descent Into Madness by croissantnova (MIT) — this mod's mechanics are derived
   from it, and the original license and copyright notices are preserved in full.
-• Original art / audio collaboration: toujourspareil, Zapsplat.
+• Original art / audio collaboration: toujourspareil, Zapsplat. Inherited sound effects keep their own
+  terms; the Zapsplat standard license is linked in NOTICE-sanitypd.txt inside the jar.
 • This version: Yaojihua.
 • AI-assisted development: parts of this mod were developed with DeepSeek Harness ("dsh").
   All design decisions, in-game testing and final review were done by the author.
+• Sound effects added by this project (full list: ASSETS-CREDITS.md in the repository):
+  - ATTRIBUTION REQUIRED, CC-BY: the horror sting 「恐怖」 by Taira Komori, via Freesound
+    (source http://tairakomori.jpn.org/freesounden.html, license
+    https://creativecommons.org/licenses/by/4.0/). Modified for this mod: trimmed and converted to OGG.
+  - CC0, no attribution required (credited anyway): the tape sounds 「Charged laser」 by LegoLunatic,
+    「盒式磁带机弹出」 by jpkweli and 「空白磁带嘶嘶噪声」 by 骨质人.
+• This mod is an unofficial derivative of the original project and is not affiliated with, endorsed by or
+  supported by its author.
+• Code is MIT; all other assets — textures, models, animations and the story text — are all rights
+  reserved.
 
 CONTACT: https://github.com/Yaojihua/sanity-psychological-devastation
 ```
@@ -131,6 +153,12 @@ CONTACT: https://github.com/Yaojihua/sanity-psychological-devastation
 • Jade（玉）—— 可选，装了会在提示框多一行理智数值
 
 功能
+• 思维链（第一部分）：思维链控制器打开你自己的十八格思维链 —— 两行九格：世界观与方法论。六种计数类型
+  （沉着 / 疯狂 / 服从 / 混沌限制 / 忍耐 / 幻觉）与十六枚思维，效果分档，并有心境加成与"心境趋势"面板。
+  在思维的提示框里按住 Shift 可查看完整档位表。
+• 失落的记忆片段（共四枚）：长按右键以拉弓姿势蓄力，随后播放一盘磁带 —— 白字逐句出现、先模糊后清晰、
+  微微抖动，底下是始终不断运行的噪声带与坏线。**某枚片段的首播不可跳过**；看过一次之后，任意键即可退出。
+  播放时单人模式会暂停，联机时你受到与创造模式同等的免伤保护。
 • 点数制理智：玩家上限 100，其它生物上限 = 其最大生命值；所有生物都有理智。
 • 被动与主动理智来源：光照、黑暗、天气、泡水、饥饿、附近怪物、宠物、音乐、脚下方块，
   以及睡觉、繁殖、交易、钓鱼、剪羊毛、成就、进食等。
@@ -155,7 +183,7 @@ CONTACT: https://github.com/Yaojihua/sanity-psychological-devastation
 • 配置文件每项都有注释：被动/主动来源、物品与方块列表、多人游戏与客户端选项。
 
 陪跑工具：SanityPD 思维探针（Mind Probe）
-可选的独立诊断模组（`sanityprobe-mc1.20-2.11.2.jar`）。**玩法不需要它**，也不改变任何游戏内容；
+可选的独立诊断模组（`sanityprobe-mc1.20-2.18.0.jar`）。**玩法不需要它**，也不改变任何游戏内容；
 它的意义是让"只有真实客户端才看得到的行为"（渲染 / HUD / 动画）可被验证。
   • 安装：把 jar 与主模组一起放进 `mods/`；用完删掉即可。
   • 看日志：`<实例>/logs/sanityprobe.log`（一行一件事、带标签），同时镜像到 `latest.log` 的 `[PROBE]` 行。
@@ -169,19 +197,29 @@ CONTACT: https://github.com/Yaojihua/sanity-psychological-devastation
 欢迎把本模组放进你的整合包。
 
 开发路线（还没到的部分）
-现在这一版是**骨架**，不是完成品。后面会做：
+现在这一版是**第一部分**，不是完成品：骨架可玩，思维链的第一部分与记忆片段磁带已经加入，后面还会做：
+• **思维链的其余部分** —— 尚未交付的那些思维。
+• **后续剧情**，以及整套理智系统最终要指向的终局内容。
 • **装备系统** —— 思维强化类装备，以及"自限制"类装备（给自己上约束，从而改变理智的运作方式）。
-• **最终战斗** —— 整套理智系统最终要指向的终局内容。
 • 更多内在生物、物品与理智来源。
-alpha 标注的含义就是这个。
+以上都不承诺时间表。
 
 致谢
 • 原作：Sanity: Descent Into Madness（作者 croissantnova，MIT 协议）—— 本模组机制源自它，
   原作者的许可与著作权声明被完整保留。
-• 原作美术 / 音效协作：toujourspareil、Zapsplat。
+• 原作美术 / 音效协作：toujourspareil、Zapsplat。沿用自原作的音效保持其原有条款；
+  Zapsplat 标准授权页链接写在包内 NOTICE-sanitypd.txt 里。
 • 本版本作者：Yaojihua。
 • AI 辅助开发：部分内容在 DeepSeek Harness（dsh）辅助下开发；所有设计决策、游戏内测试与最终审核
   均由作者完成。
+• 本模组新增的音效（完整清单见仓库里的 ASSETS-CREDITS.md）：
+  - **必须署名，CC-BY**：恐怖音效「恐怖」作者 Taira Komori，来自 Freesound
+    （来源 http://tairakomori.jpn.org/freesounden.html，协议文本
+    https://creativecommons.org/licenses/by/4.0/）。该音效**已被修改**：裁剪并转为 OGG。
+  - **CC0，不要求署名**（此处仍致谢）：磁带音效「Charged laser」作者 LegoLunatic、
+    「盒式磁带机弹出」作者 jpkweli、「空白磁带嘶嘶噪声」作者 骨质人。
+• 本模组是原项目的非官方衍生作品，与原作者无隶属关系，也未获其背书或支持。
+• **代码采用 MIT 协议；其余素材 —— 贴图、模型、动画与剧情文本 —— 保留所有权利。**
 
 联系方式：https://github.com/Yaojihua/sanity-psychological-devastation
 ```
@@ -191,7 +229,7 @@ alpha 标注的含义就是这个。
 ## 发布前勾选清单
 
 - [ ] Release type 选 **Beta**（**不要选 Alpha**：Alpha 文件不会同步到 CurseForge App，玩家在 App 里搜不到）
-- [ ] 上传的文件：`sanitypd-mc1.20-1.3.3.jar`
+- [ ] 上传的文件：`sanitypd-mc1.20-1.8.0.jar`
 - [ ] 依赖里写明 **GeckoLib（必装，需与 Forge 版本搭配）**
 - [ ] 描述里保留**上游 croissantnova 的署名与 MIT 许可**（CurseForge 会检查）
 - [ ] 保留 **AI 辅助开发声明**

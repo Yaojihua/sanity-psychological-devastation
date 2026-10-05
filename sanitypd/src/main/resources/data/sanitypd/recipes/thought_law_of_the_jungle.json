@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gbg",
+    "mck",
+    "gpg"
+  ],
+  "key": {
+    "b": { "item": "minecraft:beef" },
+    "c": { "item": "sanitypd:inner_core" },
+    "g": { "item": "minecraft:glass" },
+    "k": { "item": "minecraft:chicken" },
+    "m": { "item": "minecraft:mutton" },
+    "p": { "item": "minecraft:porkchop" }
+  },
+  "result": {
+    "item": "sanitypd:thought_law_of_the_jungle",
+    "count": 1
+  }
+}
