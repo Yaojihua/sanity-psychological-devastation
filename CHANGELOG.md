@@ -35,7 +35,7 @@ that do not exist yet are listed at the end of this entry rather than promised.
   so the screen and the server cannot drift apart.
 * **Thoughts** are the items that go into those slots. Each belongs to one of six counting types:
   **Composure**, **Madness**, **Servitude**, **Chaos Restraint**, **Endurance** and **Hallucination**.
-  Part one ships sixteen thoughts — three worldview and thirteen methodology — from *Law of the Jungle* and
+  Part one ships sixteen thoughts — eight worldview and eight methodology — from *Law of the Jungle* and
   *Nature Affinity* through to *Sleep Debt*, *Stress-Induced Analgesia*, *Irritability*, *Conversion
   Disorder* and *Depersonalization*.
 * **Tiers.** A thought's effect deepens as more thoughts of its type sit in the chain. Its tooltip shows
