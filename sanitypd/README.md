@@ -126,6 +126,30 @@ two inner entities standing together will not kill each other.
 Inner entities are still present on the server when you cannot see them, and they still count toward your
 passive sanity drain. Sane players cannot see them — unless one has targeted them.
 
+
+### The thought chain (part one)
+
+* The **Psychic Controller** opens your own Thought Chain: **eighteen slots in two rows of nine** - a
+  **Worldview** row and a **Methodology** row.
+* **Thoughts** are the items that go in them, in six counting types (Composure, Madness, Servitude,
+  Chaos Restraint, Endurance, Hallucination). This part ships sixteen of them.
+* A thought deepens as more thoughts of its type sit in the chain; its tooltip shows the current effect
+  and, with SHIFT held, the full tier table.
+* **Mindsets** switch on once the chain holds enough of a type, and the Mindset Trends panel shows which
+  are active.
+
+### The lost memory fragments
+
+* **Four fragments** sit in the creative tab added by this mod. Holding right click charges one with the
+  bow-pull pose: the HUD hides, while **your hand and the item you are holding stay visible**.
+* A charge sound starts after one second; the instant it ends the screen goes black and a **tape** plays,
+  reading the script line by line over a noise band, each line announced by an eject click, ending in a
+  white-out.
+* The **first viewing of a fragment cannot be skipped**. After that, any key leaves it. Playing a tape
+  pauses the game in single player; on a server you are protected from damage the way creative mode
+  protects you.
+* Every fragment ships a **Chinese and an English script**, and the client language decides which plays.
+
 ## Roadmap
 
 This mod is **under active development** — the current build is the framework, not the finished game.
