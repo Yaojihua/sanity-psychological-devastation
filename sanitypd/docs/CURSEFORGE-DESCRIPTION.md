@@ -18,7 +18,7 @@
 | **Game version** | 1.20.1（1.20 亦可） |
 | **License** | MIT（**必须保留上游 croissantnova 的署名**，见下方 Credits） |
 | **Contact / Issues** | 项目页 / Project page: `https://github.com/Yaojihua/sanity-psychological-devastation` |
-| **Release type** | **Beta / Alpha** ← 当前务必选 **Alpha** |
+| **Release type** | **Beta** ← 当前务必选 **Beta**（选择 Alpha 的文件不会同步到 CurseForge App，玩家在 App 里搜不到） |
 
 ---
 
