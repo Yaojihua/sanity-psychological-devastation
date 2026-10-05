@@ -28,11 +28,10 @@ actually owes is one line for the horror sting.
 
 ### Required — CC-BY (attribution is a condition of the licence)
 
-> 「恐怖」 by **Taira Komori**, licensed **CC-BY**, via **Freesound**.
-> Source: http://tairakomori.jpn.org/freesounden.html
+> **terror.mp3** (「恐怖」) by **Taira Komori**, licensed **CC-BY 4.0**, via **Freesound**.
+> Source: https://freesound.org/people/Taira%20Komori/sounds/217148/ · author's site: https://taira-komori.net/freesounden.html
 > Licence text: https://creativecommons.org/licenses/by/4.0/
-> Modified: **yes** — trimmed and converted to OGG for this mod.
-> (Licence version — 3.0 or 4.0 — still to confirm on the source page.)
+> Modified: **yes** — trimmed and converted to OGG for this mod, and used as the crawler's ambient sound.
 
 ### Courtesy — CC0 (nothing owed, credited because it is right)
 
@@ -71,8 +70,13 @@ actually owes is one line for the horror sting.
 * ✅ **Which shipped file it became — measured (2026-10-05): `screaming_crawler_ambient.ogg`.**
   Envelope correlation against the source recording is **1.000 at zero offset**, with matching duration
   (6.770 s against 6.768 s) and matching spectral centroid (8264 Hz against 8205 Hz).
-* Still to confirm on the source page: the **CC-BY version** (3.0 or 4.0). The attribution text above is
-  already complete and correct either way.
+### 恐怖 — licence and title confirmed (2026-10-05)
+
+* The source page states **Attribution 4.0** — so the credit reads **CC-BY 4.0**, and the title to name is
+  **terror.mp3** (the file on disk is named 「恐怖」, the tag on the page is "horror").
+* The page's own duration is **6.720 s** against **6.770 s** for `screaming_crawler_ambient.ogg` — the same
+  recording, re-encoded, which matches the correlation of 1.000 measured against the on-disk copy.
+* ⇒ **Nothing is outstanding for this sound.**
 
 ## 4. How the identifications were checked
 
@@ -113,7 +117,7 @@ Reproduce with the comparison script kept in the project's tooling folder.
 
 | # | Item | Why it matters |
 |---|---|---|
-| 1 | The horror sting: the **CC-BY version** only (its shipped file is now measured: `screaming_crawler_ambient.ogg`) | completeness — the attribution text is already correct |
+| 1 | ~~The horror sting: the CC-BY version~~ — ✅ **closed 2026-10-05**: the source page states **CC-BY 4.0**, title *terror.mp3*. | — |
 | 2 | Two recordings used by the crawler (`screaming_crawler_roar.ogg`, `screaming_crawler_explode.ogg`): author and licence. Both are from Freesound; the mapping to those files is measured and settled | if either is licensed **non-commercially**, it must be replaced before a release that earns revenue |
 | 3 | The inherited sounds: per-file origins | they are covered by the upstream attribution today; per-file detail would be better |
 | 4 | Any file found to be non-commercial | **blocker**: replace it before shipping a revenue-earning build |
