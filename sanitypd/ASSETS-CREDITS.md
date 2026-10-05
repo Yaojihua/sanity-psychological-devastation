@@ -18,7 +18,7 @@ and by saying whether the file was modified — the strings in section 2 are wri
 | `memory_tape_eject.ogg` | Freesound | **jpkweli** | CC0 | allowed | not required |
 | `screaming_crawler_ambient.ogg` | Freesound | **Taira Komori** | CC-BY | allowed | **required** |
 | `screaming_crawler_roar.ogg` | Freesound | **Thanra** | **CC0 (public domain dedication)** | **allowed** | not required |
-| `screaming_crawler_explode.ogg` | Freesound | **TODO — look up** | **TODO** | **TODO** | per its license |
+| `screaming_crawler_explode.ogg` | Freesound | **smokum** | **CC0 (public domain dedication)** | **allowed** | not required |
 | `insanity1.ogg`, `heartbeat.ogg`, `swish0-4.ogg`, `whoosh.ogg`, `leaves_rustle.ogg`, `screaming_crawler_*.ogg` | original project | toujourspareil, Zapsplat | Zapsplat standard license | per that license | yes — see `NOTICE-sanitypd.txt` |
 
 **In short:** the whole tape feature is CC0, so nothing is owed for it. The only attribution this mod
@@ -71,6 +71,14 @@ actually owes is one line for the horror sting.
 * ✅ **Which shipped file it became — measured (2026-10-05): `screaming_crawler_ambient.ogg`.**
   Envelope correlation against the source recording is **1.000 at zero offset**, with matching duration
   (6.770 s against 6.768 s) and matching spectral centroid (8264 Hz against 8205 Hz).
+### EXPLOSION02.wav - CC0 (crawler explosion)
+
+* Page: the EXPLOSION02.wav recording by **smokum** - https://freesound.org/people/smokum/sounds/83201/
+  - released under **CC0**, which needs no attribution and allows commercial use.
+* Ships as **`screaming_crawler_explode.ogg`**. Modified: **yes** - trimmed and converted to OGG.
+* Identified by measurement: the copy on disk is **10.141 s** against the page's **10.140 s**, same format
+  (44.1 kHz, 16-bit stereo, 1.8 MB), and the envelope correlation against the shipped file is **+1.000**.
+
 ### 怪物的吼叫声 — CC0 (crawler roar)
 
 * Page: the "Monster bellowing" recording by **Thanra** — https://freesound.org/people/Thanra/sounds/245429/
@@ -128,7 +136,7 @@ Reproduce with the comparison script kept in the project's tooling folder.
 | # | Item | Why it matters |
 |---|---|---|
 | 1 | ~~The horror sting: the CC-BY version~~ — ✅ **closed 2026-10-05**: the source page states **CC-BY 4.0**, title *terror.mp3*. | — |
-| 2 | One recording used by the crawler (`screaming_crawler_explode.ogg`, from the explosion recording): author and licence. It is from Freesound; the mapping to that file is measured and settled | if it is licensed **non-commercially**, it must be replaced before a release that earns revenue |
+| 2 | CLOSED 2026-10-05: the explosion recording is **EXPLOSION02.wav by smokum, CC0** - no attribution needed, commercial use allowed | - |
 | 3 | The inherited sounds: per-file origins | they are covered by the upstream attribution today; per-file detail would be better |
 | 4 | Any file found to be non-commercial | **blocker**: replace it before shipping a revenue-earning build |
 
@@ -136,7 +144,7 @@ Reproduce with the comparison script kept in the project's tooling folder.
 
 * [x] The tape feature's audio is fully licensed — three CC0 sounds plus one CC-BY recorded below.
 * [ ] Horror sting: shipped file mapping and the CC-BY version filled in.
-* [ ] The three remaining source recordings checked for author, licence and use.
+* [x] Every source recording checked: all sounds added by this project are **CC0**, except the horror sting which is **CC-BY 4.0** and is attributed in section 2.
 * [ ] The required attribution above reproduced on the project page, the README and the release notes.
 * [ ] Zapsplat and toujourspareil credited on the public page, not only inside the jar.
 * [ ] This file present in the repository **and** in the release archive.
