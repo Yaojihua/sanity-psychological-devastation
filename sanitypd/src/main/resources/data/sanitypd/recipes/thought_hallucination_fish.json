@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gwg",
+    "scs",
+    "gfg"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "w": {
+      "item": "minecraft:water_bucket"
+    },
+    "s": {
+      "item": "minecraft:string"
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    },
+    "f": {
+      "item": "minecraft:fishing_rod"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_hallucination_fish",
+    "count": 1,
+    "container": {
+      "item": "minecraft:bucket"
+    }
+  }
+}

@@ -1,6 +1,7 @@
 package piloser.sanitypd.event;
 
 import piloser.sanitypd.SanityMod;
+import piloser.sanitypd.client.render.RendererPrimedShadowTnt;
 import piloser.sanitypd.client.render.RendererRottingStalker;
 import piloser.sanitypd.client.render.RendererScreamingCrawler;
 import piloser.sanitypd.client.render.RendererSneakingTerror;
@@ -50,5 +51,8 @@ public class ModEventHandler
         event.registerEntityRenderer(EntityRegistry.ROTTING_STALKER.get(), RendererRottingStalker::new);
         event.registerEntityRenderer(EntityRegistry.SNEAKING_TERROR.get(), RendererSneakingTerror::new);
         event.registerEntityRenderer(EntityRegistry.SCREAMING_CRAWLER.get(), RendererScreamingCrawler::new);
+        // The primed shadow TNT reuses vanilla's TntRenderer: the block state, fuse flash and smoke all come
+        // from the entity, so nothing about the look is reimplemented here.
+        event.registerEntityRenderer(EntityRegistry.PRIMED_SHADOW_TNT.get(), RendererPrimedShadowTnt::new);
     }
 }

@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "sanitypd:block/thought_transcription_table"
+    }
+  }
+}

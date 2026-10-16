@@ -49,6 +49,18 @@ public final class ThoughtChainProbe
     /** How many tooltip lines have been logged, so a long session can be judged from one number. */
     private static int s_tooltips;
 
+    /** The signature of the tooltip that is on screen right now, or {@code null} when none is. */
+    private static String s_shownSignature;
+
+    /** The item id of that tooltip, so a repeat count can name what it belonged to. */
+    private static String s_shownKey;
+
+    /** How many times that tooltip has been rebuilt while it stayed on screen. */
+    private static int s_shownRepeats;
+
+    /** Signatures already logged this session, keyed by the same value, so a re-hover stays one line. */
+    private static final java.util.Set<String> SEEN = new java.util.HashSet<>();
+
     @SubscribeEvent
     public static void onScreenOpening(ScreenEvent.Opening event)
     {
@@ -65,6 +77,9 @@ public final class ThoughtChainProbe
 
         if (screen != null && screen.getClass().getSimpleName().contains(SCREEN_CLASS))
             ProbeLog.log("THOUGHT", "screen CLOSE");
+
+        // The tooltip that is on screen at this moment would otherwise be the one whose count is lost.
+        closeShownTooltip("the window closed");
     }
 
     /**
@@ -72,7 +87,7 @@ public final class ThoughtChainProbe
      *
      * <h2>Styled output, not a flattened string</h2>
      * The lines used to be joined with {@code getString()}, which throws away the colour and the bold flag -
-     * and colour is exactly what the owner's reports were about ("the mindset tooltip is too drab", "the
+ * and colour is exactly what the reports were about ("the mindset tooltip is too drab", "the
      * untiered values have no colour", "the numbers still show a key"). A flat line cannot answer any of
      * those: the mod's own self-check proves colour with {@code Component#visit}, so the probe must read the
      * same way. Each styled run is therefore logged as a tagged token:
@@ -115,10 +130,52 @@ public final class ThoughtChainProbe
             flat.append(styled(line));
         }
 
+        String signature = id + "\u0000" + flat;
+
+        // The event fires every frame while an item is hovered. An unchanged tooltip is counted, not printed:
+        // one repeated sentence used to fill the log (2 880 lines for 24 thoughts) and drown every verdict.
+        if (signature.equals(s_shownSignature))
+        {
+            s_shownRepeats++;
+            return;
+        }
+
+        // The tooltip that was on screen is over now, so its count is reported before this one takes its place.
+        closeShownTooltip("it was replaced by " + id);
+
+        // The same tooltip seen again (the mouse went away and came back) is the same sentence, not new news.
+        if (!SEEN.add(signature))
+            return;
+
+        s_shownSignature = signature;
+        s_shownKey = id;
+        s_shownRepeats = 1;
         s_tooltips++;
 
-        // The item id leads, so a log can be filtered per thought without reading the sentence.
+        // The item id leads, so the log can be filtered per thought without reading the sentence.
         ProbeLog.log("THOUGHT", "tooltip #" + s_tooltips + " " + id + " -> [" + flat + "]");
+    }
+
+    /**
+     * Reports how long the tooltip that was on screen stayed there, then clears it.
+     *
+     * <p>The count is what makes the deduplication honest: a tooltip that is rebuilt on every frame and one
+     * built once look identical in a log that only prints changes, and only the count tells them apart.
+     */
+    private static void closeShownTooltip(String why)
+    {
+        if (s_shownSignature == null)
+            return;
+
+        int repeats = s_shownRepeats;
+        String key = s_shownKey;
+        s_shownSignature = null;
+        s_shownKey = null;
+        s_shownRepeats = 0;
+
+        if (repeats > 1)
+            ProbeLog.log("THOUGHT", "tooltip held: " + key + " was rebuilt " + repeats
+                    + " times while it stayed on screen, and was logged once (" + why + ")");
     }
 
     /**

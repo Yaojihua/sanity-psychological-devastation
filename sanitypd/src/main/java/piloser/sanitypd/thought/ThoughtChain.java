@@ -43,6 +43,9 @@ public class ThoughtChain implements IThoughtChain
     /** Client-side mirror of which items sit in the chain; unused (and never authoritative) on the server. */
     private final java.util.List<String> m_equippedIds = new java.util.ArrayList<>();
 
+    /** Client-side mirror of which equipped thoughts are empowered; see {@link #empoweredItemIds()}. */
+    private final java.util.List<String> m_empoweredIds = new java.util.ArrayList<>();
+
     /** The owning player, bound when the capability is attached. */
     @Nullable
     private Player m_owner;
@@ -54,7 +57,7 @@ public class ThoughtChain implements IThoughtChain
      * <p>This guard is not an optimisation. A player's capabilities are deserialized while the player entity
      * is being read from the save, which happens <b>before</b> the server attaches that player's connection;
      * a push from there dereferences a null connection and the join dies with {@code Loading entity NBT}
-     * (first seen 2026-10-02: a world made by 1.2.7, opened by 1.4.3). Loading is not a change, and the counts
+ * (first seen: a world made by 1.2.7, opened by 1.4.3). Loading is not a change, and the counts
      * still reach the client: the join and respawn handlers push them once the player is live (see
      * {@code EventHandler#syncThoughtChain}).
      */
@@ -174,6 +177,39 @@ public class ThoughtChain implements IThoughtChain
         m_equippedIds.addAll(ids);
     }
 
+    /**
+     * The equipped thoughts that carry the empowered mark.
+     *
+     * <p>Server side this walks the container and asks each stack, because the mark is NBT and only the stacks
+     * have it. The client keeps the last list the server sent: it cannot see the chain's contents while the
+     * screen is shut, so a computed answer would be wrong exactly when the tooltip needs it.
+     */
+    @Override
+    public java.util.List<String> empoweredItemIds()
+    {
+        if (!authoritative())
+            return java.util.List.copyOf(m_empoweredIds);
+
+        java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>();
+
+        for (int slot = 0; slot < SIZE; slot++)
+        {
+            net.minecraft.world.item.ItemStack stack = m_container.getItem(slot);
+
+            if (!stack.isEmpty() && EmpoweredThought.is(stack))
+                ids.add(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+        }
+
+        return java.util.List.copyOf(ids);
+    }
+
+    @Override
+    public void applyEmpoweredItemIds(java.util.List<String> ids)
+    {
+        m_empoweredIds.clear();
+        m_empoweredIds.addAll(ids);
+    }
+
     @Override
     public java.util.List<String> activeMindsetIds()
     {
@@ -191,7 +227,7 @@ public class ThoughtChain implements IThoughtChain
      * Recomputes the activation order from the counts.
      *
      * <p>Survivors keep their old relative position, then newcomers are appended in registration order. That
-     * is exactly the owner's rule: the first thought that reaches a threshold takes the first slot, later ones
+ * is exactly the rule: the first thought that reaches a threshold takes the first slot, later ones
      * follow, and a mindset that turns off leaves no hole because the list is rebuilt from survivors.
      *
      * <p>Registration order is the tie-break for mindsets that become active in the same recomputation, which
@@ -247,7 +283,7 @@ public class ThoughtChain implements IThoughtChain
     /** Pushes the counts to the owning client; a no-op on the client itself and while the save is loading. */
     private void pushCounts()
     {
-        // Nothing changed - the slots are being read back from the save - and the owner is not reachable yet.
+ // Nothing changed - the slots are being read back from the save - and the owner is not reachable yet.
         if (m_loading)
             return;
 
@@ -299,7 +335,7 @@ public class ThoughtChain implements IThoughtChain
     public void deserializeNBT(CompoundTag tag)
     {
         // Every setItem below notifies the container listener. A load must not be pushed as a change: the
-        // owner is a server player without a connection at this point (see m_loading).
+ // owner is a server player without a connection at this point (see m_loading).
         m_loading = true;
 
         try

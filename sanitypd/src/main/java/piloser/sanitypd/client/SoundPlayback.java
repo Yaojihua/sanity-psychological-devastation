@@ -5,6 +5,8 @@ import piloser.sanitypd.capability.SanityProvider;
 import piloser.sanitypd.config.ConfigProxy;
 import piloser.sanitypd.sound.HeartbeatSoundInstance;
 import piloser.sanitypd.sound.InsanitySoundInstance;
+import piloser.sanitypd.sound.SoundRegistry;
+import piloser.sanitypd.thought.ThoughtType;
 import piloser.sanitypd.util.MathHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -58,6 +60,32 @@ public class SoundPlayback
     public static final int MISC_COOLDOWN_MAX = 1400;
     public static final RandomSource RAND = RandomSource.create();
 
+    /**
+     * How deep the madness has to be before the scream may join the pool, as a madness fraction
+     * ({@code .75} = sanity at or below 25%).
+     *
+ * <p>The wording is "while you carry a chaos-restraint thought, at low sanity it may show up".
+     * "Low sanity" is taken from the tier that axis already uses elsewhere: chaos-restraint joins the
+     * <b>severe</b> madness tier for its hint lines, which is sanity at or below 25%. It is one constant on
+     * purpose - moving this number is the whole job of making the scream rarer or more common.
+     */
+    public static final float SCREAM_MADNESS = .75f;
+
+    /**
+     * Whether the scream may join this draw of the ambient pool.
+     *
+     * <p>A pure function of its two inputs on purpose: the client probe calls it with made-up numbers to show
+     * the boundary, because no probe can wait for a real player to reach exactly 25% sanity carrying exactly
+     * one chaos-restraint thought.
+     *
+     * @param chaosThoughts how many chaos-restraint thoughts the player has in the chain
+     * @param madness       0 while clear-headed, 1 at zero sanity
+     */
+    public static boolean screamAllowed(int chaosThoughts, float madness)
+    {
+        return chaosThoughts > 0 && madness >= SCREAM_MADNESS;
+    }
+
     static
     {
         stepCd = RAND.nextInt(STEP_COOLDOWN_MAX - STEP_COOLDOWN_MIN) + STEP_COOLDOWN_MIN;
@@ -90,7 +118,17 @@ public class SoundPlayback
             if (cap.getMadness() >= .4f)
             {
                 miscCd = (int)(miscCd * (1f - MathHelper.clampNorm((Mth.inverseLerp(cap.getMadness(), .4f, .8f))) * .5f));
-                SoundEvent sound = MISC_SOUNDS[RAND.nextInt(MISC_SOUNDS.length)];
+
+                // The scream is not an event of its own: it is one more face of this same pool, and it only
+                // exists for a player who carries a chaos-restraint thought deep into madness. Reading the
+                // count here (instead of at the call site) keeps the pool a single draw.
+                boolean scream = screamAllowed(TypeHintPools.heldCount(ThoughtType.CHAOS_RESTRAINT), cap.getMadness());
+                int slots = MISC_SOUNDS.length + (scream ? 1 : 0);
+                int pick = RAND.nextInt(slots);
+                SoundEvent sound = pick < MISC_SOUNDS.length
+                        ? MISC_SOUNDS[pick]
+                        : SoundRegistry.SCREAMING_WOMAN.get();
+
                 player.level().playLocalSound(
                         pickFakeStepPos(player),
                         sound,

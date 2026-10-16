@@ -52,11 +52,18 @@ public final class ThoughtChainClientHandler
         for (int i = 0; i < equipped; i++)
             equippedIds.add(buf.readUtf());
 
+        int empowered = buf.readVarInt();
+        java.util.List<String> empoweredIds = new java.util.ArrayList<>(empowered);
+
+        for (int i = 0; i < empowered; i++)
+            empoweredIds.add(buf.readUtf());
+
         player.getCapability(ThoughtChainProvider.CAP).ifPresent(chain ->
         {
             chain.applyCounts(counts);
             chain.applyActiveMindsetIds(ids);
             chain.applyEquippedItemIds(equippedIds);
+            chain.applyEmpoweredItemIds(empoweredIds);
         });
     }
 

@@ -96,7 +96,7 @@ public final class SplashTexts
      * The throw was swallowed, the {@code toString()} fallback cannot see a placeholder either, and the result
      * was that {@code {player}} reached the title screen unsubstituted ("Do you like this vessel called
      * {player}?"). The probe found it by reading this very field by type and logging
-     * {@code [SPLASH-26-SAMPLE] ... placeholderLeft=3} (2026-10-04); a project check run before a release
+ * {@code [SPLASH-26-SAMPLE]... placeholderLeft=3}; a project check run before a release
      * fails if a literal vanilla field lookup comes back.
      *
      * <p>If the field cannot be read this returns {@code null} and the caller passes the text through unchanged.

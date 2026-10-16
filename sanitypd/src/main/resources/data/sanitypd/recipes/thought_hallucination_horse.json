@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "glg",
+    "lcl",
+    "glg"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "l": {
+      "item": "minecraft:leather"
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_hallucination_horse",
+    "count": 1
+  }
+}

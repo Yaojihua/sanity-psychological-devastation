@@ -5,6 +5,10 @@
 		"sanitypd:true_damage_attributed",
 		"sanitypd:psychic_overflow",
 		"sanitypd:crawler_explosion",
-		"sanitypd:mania"
+		"sanitypd:mania",
+		"sanitypd:shadow_tnt",
+		"sanitypd:shadow_tnt_self",
+		"sanitypd:shadow_tnt_by_owner",
+		"sanitypd:self_injury"
 	]
 }

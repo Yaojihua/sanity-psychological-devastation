@@ -134,7 +134,13 @@ enum SanityEntityComponent implements IEntityComponentProvider
  */
 final class BrainLine implements IElement
 {
-    /** 11x11 mini brain, redrawn from the original Sanity mod's 32x32 brain in the same palette. */
+    /**
+     * The 11x11 mini brain, redrawn from the original Sanity mod's 32x32 brain in the same palette.
+     *
+     * <p>⚠️ Blitted with the <b>nine-argument</b> overload: the seven-argument one hard-codes the sheet as
+     * 256x256, so an 11x11 picture drawn through it would sample a single texel and come out as a flat square.
+     * Here the art fills the whole sheet, so the last two arguments are the icon size itself.
+     */
     private static final ResourceLocation ICON =
             new ResourceLocation(SanityMod.MODID, "textures/gui/mini_brain.png");
 

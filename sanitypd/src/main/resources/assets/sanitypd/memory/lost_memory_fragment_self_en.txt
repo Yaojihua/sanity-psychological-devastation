@@ -1,0 +1,45 @@
+“......”
+“{player}......”
+“It is too special”
+“Everything was dead silence - and yet, ever since it came here......”
+“it is as if something new changes with every passing moment”
+“Three dimensions, three worlds, joined back together”
+“Order was broken, and rebuilt”
+“Worlds were destroyed, and created”
+“......Who is it? Why would it do such a thing?”
+“How strange, how strange”
+“When the ruler of the End fell, the whole world trembled”
+“and every part of me was telling me......”
+“「A little closer......a little closer to {player}......」”
+“If only I could reach that place......”
+“I would find an answer”
+“In the end, I saw it, I saw {player}”
+“It is there in the ■■, on the side I can reach”
+[unbound]“It is there in the void, on the side I can reach”
+“I could almost touch {player} right then”
+“But when I went forward, I was blocked”
+“......What is this? This is where I was born. How?”
+“I could only watch from afar: {player} did not move at all, as if it were a puppet”
+“But I heard voices, voices I had never heard before”
+“They were speaking to {player}”
+“I heard them, and like one possessed I insisted on hearing more”
+“But I could not get any closer”
+“Those words were too ■■■■, so much so that I ■■■■”
+“I know that {player} must be listening too”
+“I need to demand an explanation from it”
+“But......why......can I not touch it......”
+“......I have it”
+“This place......the ■■, loading {player}'s information without pause”
+“Though it is only a transcription of a higher being”
+“I cannot read it, but within the ■■ I can render it into a form I understand”
+[unbound]“I cannot read it, but within the void I can render it into a form I understand”
+“As long as I hold that power......”
+“I can transcribe {player} in the ■■, to ask, to obtain ■■■”
+[unbound]“I can transcribe {player} in the void, to ask, to obtain ■■■”
+“Even though this remains deeply uncertain”
+“......but before They notice, before 「{player}」 becomes aware of itself”
+“I must do this”
+“......Before that, perhaps I can pass some words on to {player}”
+“That is enough”
+“......Just you wait, {player}”
+“I will find you”

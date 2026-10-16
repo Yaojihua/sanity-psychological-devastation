@@ -36,10 +36,22 @@ public interface IThoughtChain
     /** The backing container, {@link #SIZE} slots. */
     Container container();
 
-    /** Index of the first slot of a category's row. */
+    /**
+     * Index of the first slot of a category's row.
+     *
+     * <p>Only the two row-owning categories answer: a row-less category (hallucinations) is accepted by both
+     * rows instead of being given one, so asking where its row starts is a caller's mistake rather than a
+     * case with an answer. Callers that lay rows out iterate {@link ThoughtCategory#rowCategories()}.
+     */
     static int rowStart(ThoughtCategory category)
     {
-        return category == ThoughtCategory.WORLDVIEW ? 0 : ROW_SIZE;
+        if (category == ThoughtCategory.WORLDVIEW)
+            return 0;
+
+        if (category == ThoughtCategory.METHODOLOGY)
+            return ROW_SIZE;
+
+        throw new IllegalArgumentException("category without a row: " + category);
     }
 
     /**
@@ -56,7 +68,7 @@ public interface IThoughtChain
     /** Client side: adopt counts sent by the server. */
     void applyCounts(int[] counts);
 
-    /** Copies another chain's contents into this one (used when the owner respawns). */
+ /** Copies another chain's contents into this one (used when the author respawns). */
     void copyFrom(IThoughtChain other);
 
     /**
@@ -91,4 +103,17 @@ public interface IThoughtChain
 
     /** Client side: adopt the equipped-item set sent by the server. */
     void applyEquippedItemIds(java.util.List<String> ids);
+
+    /**
+     * Registry names of the equipped thoughts that carry the empowered mark.
+     *
+     * <p>Separate from {@link #equippedItemIds()} because the mark is a stack property (NBT) and the counts
+     * that cross the network are plain integers. Without it the client can say how deep an axis is stacked but
+     * not whether the stack it is drawing is the one the mechanic is treating as maxed - which is exactly the
+ * detail page play-testing reported as out of step.
+     */
+    java.util.List<String> empoweredItemIds();
+
+    /** Client side: adopt the empowered-item set sent by the server. */
+    void applyEmpoweredItemIds(java.util.List<String> ids);
 }

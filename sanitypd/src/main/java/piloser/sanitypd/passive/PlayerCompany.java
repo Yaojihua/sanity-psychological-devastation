@@ -38,6 +38,15 @@ public class PlayerCompany implements IPassiveSanitySource
                 player.position().add(offset)
         )))
         {
+            // Creative and spectator players are not company. They are excluded from every other sanity
+            // source (SanityProcessor#tickPlayer returns early for them), and getNearbyPlayers does not
+            // filter them - verified in the bytecode of EntityGetter#getNearbyPlayers, which accepts every
+            // player in the box whose TargetingConditions#test passes, and test() never looks at the game
+            // mode. Without this line one creative player parked next to a survivor drains that survivor's
+            // sanity (~7 points a minute) while a screen away from the game.
+            if (p.isCreative() || p.isSpectator())
+                continue;
+
             p.getCapability(SanityProvider.CAP).ifPresent(s ->
             {
                 if (s.getMadness() >= .5f)

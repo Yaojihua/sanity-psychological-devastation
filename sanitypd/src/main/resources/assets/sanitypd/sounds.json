@@ -83,5 +83,36 @@
 			"sanitypd:memory_tape_eject"
 		],
 		"subtitle": "subtitles.sanitypd.memory_tape_eject"
+	},
+	"screaming_woman": {
+		"category": "ambient",
+		"sounds": [
+			"sanitypd:screaming_woman"
+		],
+		"subtitle": "subtitles.sanitypd.screaming_woman"
+	},
+	"self_injury_stab": {
+		"category": "player",
+		"sounds": [
+			"sanitypd:self_injury_stab1",
+			"sanitypd:self_injury_stab2",
+			"sanitypd:self_injury_stab3"
+		],
+		"subtitle": "subtitles.sanitypd.self_injury_stab"
+	},
+	"self_injury_tinnitus": {
+		"category": "player",
+		"sounds": [
+			"sanitypd:self_injury_tinnitus1",
+			"sanitypd:self_injury_tinnitus2"
+		],
+		"subtitle": "subtitles.sanitypd.self_injury_tinnitus"
+	},
+	"self_injury_drip": {
+		"category": "player",
+		"sounds": [
+			"sanitypd:self_injury_drip"
+		],
+		"subtitle": "subtitles.sanitypd.self_injury_drip"
 	}
 }

@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gtg",
+    "scs",
+    "gtg"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "t": {
+      "item": "sanitypd:inner_clump"
+    },
+    "s": {
+      "item": "sanitypd:stabilizer_a"
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_stockholm_syndrome",
+    "count": 1
+  }
+}

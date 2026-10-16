@@ -21,7 +21,7 @@ import piloser.sanitypd.SanityMod;
  * {@code AttachCapabilitiesEvent}, a {@code CAP} token for lookups, and {@code ICapabilitySerializable}
  * so Forge writes and reads the contents with the player's own data.
  *
- * <p>The provider holds the owner because the chain has to know which side it is on (see
+ * <p>The provider holds the author because the chain has to know which side it is on (see
  * {@link ThoughtChain#authoritative()}), and because pushing counts needs the owning
  * {@code ServerPlayer}.
  */

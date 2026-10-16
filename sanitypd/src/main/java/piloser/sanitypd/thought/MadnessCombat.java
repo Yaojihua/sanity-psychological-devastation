@@ -88,7 +88,7 @@ public final class MadnessCombat
 
     /**
      * Attack bonus from "Identification with the Aggressor": granted only while hitting back the entity
-     * that struck the player, inside the window the owner specified.
+ * that struck the player, inside the window the author specified.
      */
     public static float aggressorBonus(Player player, Entity target)
     {

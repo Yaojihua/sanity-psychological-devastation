@@ -16,7 +16,7 @@ import java.util.Locale;
  *
  * <h2>[THOUGHT41-29]</h2>
  * Reports the three registry entries and the numbers the mechanics actually read, then gives one verdict:
- * the ladders/constants must be the ones the owner specified (10/20/30%, 110/117/125%, 1 health, 6 ticks,
+ * the ladders/constants must be the ones the author specified (10/20/30%, 110/117/125%, 1 health, 6 ticks,
  * 60% sanity). Reading them from the loaded mod - rather than from the source - is what makes this a probe
  * and not a second copy of the same grep.
  *

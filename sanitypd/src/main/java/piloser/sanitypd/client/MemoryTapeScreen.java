@@ -22,7 +22,7 @@ import piloser.sanitypd.sound.SoundRegistry;
 /**
  * The black "tape" screen of the lost memory fragment: the noise of a worn tape, and the script.
  *
- * <h2>The owner's spec (2026-10-05)</h2>
+ * <h2>Specification</h2>
  * <ul>
  *   <li>The tape hiss loops from the moment the screen appears <b>until playback ends</b> (owned by
  *       {@code MemorySequence})</li>
@@ -31,7 +31,7 @@ import piloser.sanitypd.sound.SoundRegistry;
  *       wrapped in its double quotes</li>
  *   <li>A line <b>appears instantly with no fade-in</b>, but <b>heavily blurred</b>, and recovers to
  *       sharp text within a few frames</li>
- *   <li>White text, <b>smaller than the inner hint lines</b>, at about the place the owner's reference
+ * <li>White text, <b>smaller than the inner hint lines</b>, at about the place the reference
  *       frame had it</li>
  *   <li>Shake at the inner lines' amplitude, re-rolled <b>every 0.1 s</b></li>
  *   <li>Each line shows for <b>3 s</b>, fades out, and the next starts <b>0.1 s</b> later</li>
@@ -46,7 +46,7 @@ import piloser.sanitypd.sound.SoundRegistry;
  * <h2>Why the timeline is a wall clock, not ticks</h2>
  * This screen makes the game pause in single player, so anything driven by a tick hook would be at the
  * mercy of "does that hook still run while paused". {@code System#nanoTime} is not: the presentation
- * advances in real seconds whether the world is ticking or not, which is also what the owner's durations
+ * advances in real seconds whether the world is ticking or not, which is also what the durations
  * ("2 seconds", "3 seconds", "0.1 s") literally mean.
  *
  * <p>Two consequences are handled here on purpose: the sound engine is nudged awake every frame (vanilla
@@ -58,7 +58,7 @@ public class MemoryTapeScreen extends Screen
 {
     // ------------------------------------------------------------------ tape noise (part 1)
 
-    /** Height of the head-switching noise band as a fraction of the screen (measured off the owner's reference frame: 7.16%). */
+ /** Height of the head-switching noise band as a fraction of the screen (measured off the reference frame: 7.16%). */
     private static final float BAND_FRACTION = 0.072f;
 
     /** Chance that the band is missing from a given frame: it must flicker in and out, never sit there. */
@@ -69,16 +69,16 @@ public class MemoryTapeScreen extends Screen
 
     // ------------------------------------------------------------------ script playback (part 2)
 
-    /** Black for this long before the first line: the owner's "black screen, then 2 s". */
+ /** Black for this long before the first line: the "black screen, then 2 s". */
     private static final int FIRST_LINE_DELAY_TICKS = 40;
 
-    /** How long a line stays fully readable: the owner's "3 s, then it fades". */
+ /** How long a line stays fully readable: the "3 s, then it fades". */
     private static final int LINE_HOLD_TICKS = 60;
 
     /** The fade itself. Not specified beyond "fades out"; this is the readable-not-abrupt value. */
     private static final int LINE_FADE_TICKS = 8;
 
-    /** Silence between the end of a fade and the next line: the owner's "after the fade, 0.1 s". */
+ /** Silence between the end of a fade and the next line: the "after the fade, 0.1 s". */
     private static final int LINE_GAP_TICKS = 2;
 
     /** One line's whole cycle. */
@@ -96,7 +96,7 @@ public class MemoryTapeScreen extends Screen
     /** Shake amplitude, in the same units the inner hint line uses. */
     private static final int SHAKE_AMPLITUDE = 1;
 
-    /** Shake is re-rolled every 0.1 s (2 ticks) - the owner's frequency, slower than the inner lines'. */
+ /** Shake is re-rolled every 0.1 s (2 ticks) - the frequency, slower than the inner lines'. */
     private static final int SHAKE_INTERVAL_TICKS = 2;
 
     /** After the last line the screen bleaches to white over this long, then the sequence ends. */
@@ -108,7 +108,7 @@ public class MemoryTapeScreen extends Screen
     /**
      * Where the text block sits, as a fraction of the screen height.
      *
-     * <p>0.5 = the middle of the screen, which is where the owner wants it ("播放时文字在屏幕中心"). The
+ * <p>0.5 = the middle of the screen, which is where it belongs ("播放时文字在屏幕中心"). The
      * block is centred on this line rather than hung from it, so one line and a wrapped pair both sit
      * symmetric about it.
      */
@@ -117,10 +117,10 @@ public class MemoryTapeScreen extends Screen
     /** Clear space kept at each side of the screen: a line wider than this is wrapped onto more lines. */
     private static final float TEXT_MARGIN = 24f;
 
-    /** White text, as in the owner's reference frame. */
+ /** White text, as in the reference frame. */
     private static final int TEXT_COLOUR = 0xFFFFFF;
 
-    /** The story clock's unit: one tick is 50 ms, so the tick constants above read as the owner's seconds. */
+ /** The story clock's unit: one tick is 50 ms, so the tick constants above read as the seconds. */
     private static final double NANOS_PER_TICK = 50_000_000.0;
 
     // ------------------------------------------------------------------ state
@@ -156,8 +156,8 @@ public class MemoryTapeScreen extends Screen
     }
 
     /**
-     * The game pauses while the tape runs in single player - the owner's rule. On a server this has no
-     * effect at all: vanilla only pauses a local game, which is exactly the split the owner described.
+ * The game pauses while the tape runs in single player - the rule. On a server this has no
+ * effect at all: vanilla only pauses a local game, which is exactly that split.
      */
     @Override
     public boolean isPauseScreen()
@@ -202,7 +202,7 @@ public class MemoryTapeScreen extends Screen
         Minecraft mc = Minecraft.getInstance();
 
         // Vanilla pauses the sound engine together with the game, which would silence the tape in single
-        // player - the one place the owner wants the hiss. Nudging it awake every frame keeps the tape
+ // player - the one place the hiss belongs. Nudging it awake every frame keeps the tape
         // audible and costs nothing when the game was not paused to begin with.
         mc.getSoundManager().resume();
 
@@ -267,7 +267,19 @@ public class MemoryTapeScreen extends Screen
 
         m_finished = true;
         MemoryTapeRecord.markPlayed(m_scriptKey);
+
+        // Tell the server what this save has now watched through: the hidden fragment's allowance is its
+        // decision, and these markers are client-side files it cannot read. Sent here, at the one moment the
+        // answer can change, and again on join - see MemoryTapeGate#reportWatchedMask.
+        MemoryTapeGate.reportWatchedMask();
+
         SanityMod.LOGGER.info("[MEMORY] tape of {} finished; returning to the game", m_scriptKey);
+
+        // The eighth fragment of the nine can only complete here, so this is the moment the void's limits on
+        // the player's understanding can be lifted; a save that was already past it is caught on join instead
+        // (see VoidUnbound).
+        VoidUnbound.announceIfDue();
+
         onClose();
     }
 
@@ -332,7 +344,7 @@ public class MemoryTapeScreen extends Screen
      * <p>Wrapping uses vanilla's own splitter ({@code Font#split}), so Latin text breaks between words and
      * Chinese text between characters, exactly as the rest of the game does. A wrapped block stays centred
      * on {@link #TEXT_Y_FRACTION}, which means a line that fits looks no different from before, and a long
-     * line - English especially, as the owner pointed out - is never clipped at the screen edge. Nothing is
+ * line - English especially, as the author pointed out - is never clipped at the screen edge. Nothing is
      * truncated: the block simply grows upwards and downwards from the centre.
      *
      * <p>The blur is a handful of low-alpha copies scattered inside the blur radius; at 60 frames a second
@@ -460,7 +472,7 @@ public class MemoryTapeScreen extends Screen
     }
 
     /**
-     * The white dropout lines: the flickering broken lines the owner opened the whole request with.
+ * The white dropout lines: the flickering broken lines the author opened the whole request with.
      *
      * <p>Zero to three new lines per frame, mostly near the bottom, with random length, thickness and
      * brightness; occasionally a long one spans most of the screen. Nothing is remembered between frames,

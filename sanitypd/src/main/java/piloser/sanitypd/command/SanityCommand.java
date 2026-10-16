@@ -17,6 +17,7 @@ import piloser.sanitypd.capability.SanityProvider;
 import piloser.sanitypd.config.DimensionConfig;
 import piloser.sanitypd.damage.SanityDamageTypes;
 import piloser.sanitypd.event.TestSpawnGuard;
+import piloser.sanitypd.thought.SelfInjury;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -56,6 +57,13 @@ public class SanityCommand
 {
     /** Upper damage bound for the debug commands; a wide range makes overflow conversion easy to test. */
     private static final float MAX_DEBUG_AMOUNT = 100000.0f;
+    /**
+     * Who may run the subtrees that change the game: permission level 2, as it has always been.
+     *
+     * <p>It is attached to each subtree instead of the root so that {@code /sanity hint} can be the exception -
+     * see the note in {@link #register(CommandDispatcher)}.
+     */
+    private static final java.util.function.Predicate<CommandSourceStack> OPERATOR = stack -> stack.hasPermission(2);
 
     /**
      * True damage dealt to the sender when the hidden name is spoken on the <b>server</b> side.
@@ -83,11 +91,14 @@ public class SanityCommand
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
-        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("sanity")
-                .requires(stack -> stack.hasPermission(2));
+        // The permission requirement sits on each subtree rather than on the root, because exactly one subtree
+        // has to work without it: /sanity hint writes only the caller's own client-side hint file (see
+        // registerHint), and in a hardcore world - where cheats are off, so nobody holds permission 2 - the
+ // players may still want to write their own inner lines. Everything else changes game state and keeps it.
+        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("sanity");
 
         // ---- /sanity set ----
-        root.then(Commands.literal("set")
+        root.then(Commands.literal("set").requires(OPERATOR)
                 .then(Commands.argument("value", FloatArgumentType.floatArg(0f, Sanity.MAX_SANITY))
                         .executes(stack -> setSanity(stack.getSource(),
                                 Collections.singleton(stack.getSource().getPlayerOrException()),
@@ -99,7 +110,7 @@ public class SanityCommand
                                         FloatArgumentType.getFloat(stack, "value"))))));
 
         // ---- /sanity add ----
-        root.then(Commands.literal("add")
+        root.then(Commands.literal("add").requires(OPERATOR)
                 .then(Commands.argument("value", FloatArgumentType.floatArg(-Sanity.MAX_SANITY, Sanity.MAX_SANITY))
                         .executes(stack -> addSanity(stack.getSource(),
                                 Collections.singleton(stack.getSource().getPlayerOrException()),
@@ -111,17 +122,17 @@ public class SanityCommand
                                         FloatArgumentType.getFloat(stack, "value"))))));
 
         // ---- /sanity get <targets> (debug: read sanity) ----
-        root.then(Commands.literal("get")
+        root.then(Commands.literal("get").requires(OPERATOR)
                 .then(Commands.argument("targets", EntityArgument.entities())
                         .executes(stack -> getSanity(stack.getSource(), EntityArgument.getEntities(stack, "targets")))));
 
         // ---- /sanity state <targets> (debug: read sanity plus confusion / mania state) ----
-        root.then(Commands.literal("state")
+        root.then(Commands.literal("state").requires(OPERATOR)
                 .then(Commands.argument("targets", EntityArgument.entities())
                         .executes(stack -> getState(stack.getSource(), EntityArgument.getEntities(stack, "targets")))));
 
         // ---- /sanity psychic <targets> <amount> (debug: deal psychic damage) ----
-        root.then(Commands.literal("psychic")
+        root.then(Commands.literal("psychic").requires(OPERATOR)
                 .then(Commands.argument("targets", EntityArgument.entities())
                         .then(Commands.argument("amount", FloatArgumentType.floatArg(0f, MAX_DEBUG_AMOUNT))
                                 .executes(stack -> applyPsychic(stack.getSource(),
@@ -129,36 +140,49 @@ public class SanityCommand
                                         FloatArgumentType.getFloat(stack, "amount"))))));
 
         // ---- /sanity truedamage <targets> <amount> (debug: deal true damage) ----
-        root.then(Commands.literal("truedamage")
+        root.then(Commands.literal("truedamage").requires(OPERATOR)
                 .then(Commands.argument("targets", EntityArgument.entities())
                         .then(Commands.argument("amount", FloatArgumentType.floatArg(0f, MAX_DEBUG_AMOUNT))
                                 .executes(stack -> applyTrueDamage(stack.getSource(),
                                         EntityArgument.getEntities(stack, "targets"),
                                         FloatArgumentType.getFloat(stack, "amount"))))));
 
+        // ---- /sanity selfinjury <targets> (make the targets perform one act right now) ----
+        // The clock needs three minutes below 25% sanity, so this is the only way to look at the act, its five
+        // seconds of presentation and the eight-line pool that answers it on demand. It calls the same act path
+        // the clock uses (SelfInjury#forceAct), so nothing here can drift away from the real mechanic.
+        // The bare form deliberately takes no permission: in a hardcore world cheats are off, so nobody holds
+ // permission 2, and the design requires the act to stay reachable there - self only. Naming other
+        // targets stays operator-only.
+        root.then(Commands.literal("selfinjury")
+                .executes(stack -> forceSelfInjury(stack.getSource(),
+                        Collections.singleton(stack.getSource().getPlayerOrException())))
+                .then(Commands.argument("targets", EntityArgument.players()).requires(OPERATOR)
+                        .executes(stack -> forceSelfInjury(stack.getSource(), EntityArgument.getPlayers(stack, "targets")))));
+
         // ---- /sanity <value> (shortest form: set the caller's own sanity) ----
         // It does not clash with the literal subcommands above: Brigadier matches literals first,
         // "set" and friends are not valid numbers, and a plain number is never parsed as an entity
         // selector, so /sanity 50 always lands here.
-        root.then(Commands.argument("value", FloatArgumentType.floatArg(0f, Sanity.MAX_SANITY))
+        root.then(Commands.argument("value", FloatArgumentType.floatArg(0f, Sanity.MAX_SANITY)).requires(OPERATOR)
                 .executes(stack -> setSanity(stack.getSource(),
                         Collections.singleton(stack.getSource().getPlayerOrException()),
                         FloatArgumentType.getFloat(stack, "value"))));
 
         // ---- /sanity config reload ----
-        root.then(Commands.literal("config")
+        root.then(Commands.literal("config").requires(OPERATOR)
                 .then(Commands.literal("reload")
                         .executes(stack -> reloadConfig(stack.getSource()))));
 
         // ---- /sanity nospawn on|off|status (testing aid: clear and block "non-inner" monsters) ----
-        root.then(Commands.literal("nospawn")
+        root.then(Commands.literal("nospawn").requires(OPERATOR)
                 .then(Commands.literal("on").executes(stack -> setNoSpawn(stack.getSource(), true)))
                 .then(Commands.literal("off").executes(stack -> setNoSpawn(stack.getSource(), false)))
                 .then(Commands.literal("status").executes(stack -> noSpawnStatus(stack.getSource()))));
 
         // ---- /sanity innerspawn on|off|status (testing aid: clear and block inner entities) ----
         // Independent of nospawn; enabling both means no mobs at all.
-        root.then(Commands.literal("innerspawn")
+        root.then(Commands.literal("innerspawn").requires(OPERATOR)
                 .then(Commands.literal("on").executes(stack -> setInnerNoSpawn(stack.getSource(), true)))
                 .then(Commands.literal("off").executes(stack -> setInnerNoSpawn(stack.getSource(), false)))
                 .then(Commands.literal("status").executes(stack -> innerNoSpawnStatus(stack.getSource()))));
@@ -191,7 +215,7 @@ public class SanityCommand
 
     private static void registerResist(LiteralArgumentBuilder<CommandSourceStack> root)
     {
-        var resist = Commands.literal("resist");
+        var resist = Commands.literal("resist").requires(OPERATOR);
 
         for (ResistMode mode : ResistMode.values())
         {
@@ -366,6 +390,36 @@ public class SanityCommand
             stack.sendFailure(Component.translatable("commands.sanity.resist.no_target"));
 
         return found;
+    }
+
+    /**
+     * {@code /sanity selfinjury <targets>}: one act per target, immediately.
+     *
+     * <p>Reports per player instead of summarising: "the wound happened" and "this player has no sanity data"
+     * are different answers, and a summary line would hide which one a target got.
+     *
+     * @return how many acts were performed
+     */
+    private static int forceSelfInjury(CommandSourceStack source, Collection<ServerPlayer> targets)
+    {
+        int done = 0;
+
+        for (ServerPlayer player : targets)
+        {
+            if (SelfInjury.forceAct(player))
+            {
+                done++;
+                source.sendSuccess(() -> Component.translatable("commands.sanity.selfinjury.success",
+                        player.getDisplayName()), true);
+            }
+            else
+            {
+                source.sendFailure(Component.translatable("commands.sanity.selfinjury.failed",
+                        player.getDisplayName()));
+            }
+        }
+
+        return done;
     }
 
     // ================================================================== inner hints
@@ -543,6 +597,14 @@ public class SanityCommand
 
         ServerPlayer speaker = (ServerPlayer) stack.getEntity();
 
+        // ---- The hidden fragment comes first ----
+        // Ahead of the macaron buy-out and ahead of the punishment: a player who has watched all four story
+        // fragments through, and who has not yet spent this save's single allowance, receives the hidden
+        // fragment and nothing else happens. Once per player, per save - the flags live in that player's own
+        // persistent data, so a new world starts with the allowance intact and two players never share one.
+        if (piloser.sanitypd.item.HiddenMemoryGrant.tryGrant(speaker))
+            return true;
+
         MinecraftServer server = stack.getServer();
 
         // A dedicated server must never halt, whatever the sender looks like: it would drop every other
@@ -682,8 +744,8 @@ public class SanityCommand
      * which is why the dedicated case is already handled before this method is reached.
      *
      * <p>WARNING: this is a secondary check. {@link #isRemoteServerPlayer} already answers "punish" for a
-     * published world <b>without</b> looking at ownership, because a LAN host was once let through by an
-     * ownership test that answered {@code false} for him. Do not make the routing depend on this method.
+ * published world <b>without</b> looking at ownership, because a LAN host was once let through by an
+ * ownership test that answered {@code false} for him. Do not make the routing depend on this method.
      */
     private static boolean isSingleplayerOwnerOrUnshared(MinecraftServer server, ServerPlayer speaker)
     {
@@ -705,7 +767,7 @@ public class SanityCommand
      *
      * <h3>Why this cannot be the only test</h3>
      * The address alone cannot separate "playing alone" from "hosting": the host's own connection is
-     * loopback as well. That case is settled by {@link #isSingleplayerOwnerOrUnshared} inside
+ * loopback as well. That case is settled by {@link #isSingleplayerOwnerOrUnshared} inside
      * {@link #applyForbiddenNamePunishment}; this method only covers the guests.
      *
      * <p>If the address cannot be read at all, the answer is {@code false} (treat the sender as the local
@@ -721,15 +783,15 @@ public class SanityCommand
         MinecraftServer server = stack.getServer();
 
         // A dedicated server has no local player at all: everyone who sends a command there is a guest,
-        // and halting it would drop every one of them. Do not try to reason about ownership here - a
-        // dedicated server reports itself as the singleplayer owner of its world, which is how an earlier
+ // and halting it would drop every one of them. Do not try to reason about ownership here - a
+ // dedicated server reports itself as the singleplayer owner of its world, which is how an earlier
         // version let such a server fall through to the crash half.
         if (server.isDedicatedServer())
             return true;
 
         // A world that is open to the network is punished for everyone, the host included: his game is the
         // one holding the world, so halting it would take the server down with it. This test is about the
-        // world, not about who is asking - relying on "is this the singleplayer owner" was not enough and
+ // world, not about who is asking - relying on "is this the singleplayer owner" was not enough and
         // let a LAN host crash his own server.
         if (server.isPublished())
             return true;
@@ -776,6 +838,54 @@ public class SanityCommand
         // Mentioning the name is what puts a command on the hidden-name track; everything else falls
         // through to the ordinary add path untouched.
         final boolean speaksTheName = piloser.sanitypd.client.HiddenNameDetector.mentionsTheName(text);
+
+        // ---- The one-shot excuse lasts exactly one command ----
+        // The excuse is set by the grant below and read by the client half of this same command. It is
+        // never read in the case that sets it - when the fragment is handed over, the client dispatch is
+        // not reached at all - so a flag left behind would still be armed on the next attempt and would
+        // quietly let that one through. Cleared first, through DistExecutor so that nothing client-only is
+        // ever resolved on a dedicated server.
+        net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
+                () -> () -> piloser.sanitypd.client.MemoryTapeGate.clearExcuse());
+
+        // ---- Hidden content: a line that is nothing but your own name ----
+ // The rule: once the end poem has been watched through, adding an inner line that
+        // is only your own game name hands over the hidden fragment of your own name - once per player, per
+        // save - and the command is cancelled silently: no success message, and the text never reaches the
+        // custom hint file. Every later attempt is an ordinary line again, because the allowance is spent;
+        // this branch therefore decides nothing except that one moment.
+        //
+        // Guarded by !speaksTheName so the forbidden name keeps winning: a player whose own name happens to be
+        // the hidden name has always been answered by the crash (or the macaron escape), and that must not
+        // change because of this.
+        if (!speaksTheName && stack.getEntity() instanceof ServerPlayer self
+                && piloser.sanitypd.item.HiddenSelfGrant.tryGrant(self, text))
+            return 0;
+
+        // ---- Hidden content: a line that is nothing but the macaron's name ----
+ // The second word trigger, and the same shape as the one above: after the end
+        // poem, one silent cancel and one fragment per player per save; afterwards the same text is an
+        // ordinary line. The two share their decision in HiddenWordGrant, so neither can grow its own rule.
+        if (!speaksTheName && stack.getEntity() instanceof ServerPlayer sweet
+                && piloser.sanitypd.item.HiddenMacaronGrant.tryGrant(sweet, text))
+            return 0;
+
+        // ---- Hidden content: a line that is nothing but "虚空" / "Void" ----
+ // The third word trigger, the same shape again: after the end poem, one silent
+        // cancel and one fragment per player per save; afterwards the same text is an ordinary line. The three
+        // triggers share one decision in HiddenWordGrant, so none of them can grow a rule of its own.
+        if (!speaksTheName && stack.getEntity() instanceof ServerPlayer void_self
+                && piloser.sanitypd.item.HiddenVoidGrant.tryGrant(void_self, text))
+            return 0;
+
+        // ---- Hidden content: a line that is nothing but "容器" / "Vessel" ----
+ // The fourth word trigger, the same shape again: one silent cancel and one
+        // fragment per player per save, and afterwards the same text is an ordinary line. What makes this one
+        // different is its prerequisite - the inner void's fragment has to have been watched through first -
+        // and that prerequisite is declared by the trigger itself, not inherited from the three above.
+        if (!speaksTheName && stack.getEntity() instanceof ServerPlayer vessel_self
+                && piloser.sanitypd.item.HiddenContainerGrant.tryGrant(vessel_self, text))
+            return 0;
 
         // ---- Hidden content: the sender decides which half runs ----
         // Two halves, and only one of them ever runs:
@@ -836,6 +946,19 @@ public class SanityCommand
         if (speaksTheName && stack.getEntity() == null)
             return 0;
 
+        // ---- Hidden content: the hidden fragment comes before the macaron escape ----
+ // The rule: this has priority over the macaron buy-out. Decided on the server half, and the
+        // client half of this same command is excused through DistExecutor so that nothing client-only is ever
+        // resolved on a dedicated server.
+        if (speaksTheName && stack.getEntity() instanceof ServerPlayer named
+                && piloser.sanitypd.item.HiddenMemoryGrant.tryGrant(named))
+        {
+            net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
+                    () -> () -> piloser.sanitypd.client.MemoryTapeGate.excuseThisCommand());
+
+            return 0;
+        }
+
         // ---- Hidden content: a macaron buys the player out ----
         // A player who is carrying macarons is spared: instead of the crash, every macaron is taken and
         // the player is left at exactly one health point. The message goes to the sender alone.
@@ -845,20 +968,48 @@ public class SanityCommand
         return runOnClient(stack, () ->
         {
             // ---- Hidden content: speaking the forbidden name is not allowed ----
-            // A submitted text that mentions the hidden name (allowing any spacing or punctuation between
-            // the letters) closes the game on the spot and leaves the watcher message in the crash report.
-            // Deliberately placed before all validation: mentioning the name is enough, even a duplicate or
-            // over-long line triggers it.
-            // The catch below covers the case where the easter egg itself fails (for example halt() being
-            // unavailable in some environment); this try must never swallow the crash and silently disable
-            // the hidden content, so failures are logged at ERROR level.
-            try
+            // This branch is the whole of the client's side of the easter egg, and it has exactly two
+            // outcomes. Either the server half of this very command already handed the hidden fragment over
+            // (it leaves a one-shot excuse behind), and the command ends silently; or it did not, and the
+            // game closes on the spot, leaving the watcher message in the crash report.
+            //
+            // Note which half decides: the client decides nothing from its own files. It used to, and that is
+            // what went wrong - a save whose four fragments were watched before the server had been told so
+            // looked like a first time to the client while the server saw no mask at all, so the name was
+            // neither paid for nor punished. It fell straight through to the custom hint list below and put
+            // the name on screen.
+            //
+            // That must never happen, whatever state the two halves are in: a text that mentions the name
+            // never reaches the custom hint file, and the command reports neither success nor failure. The
+            // reward for a first time is the fragment itself, which the server half has already handed over
+            // by the time this runs.
+            if (speaksTheName)
             {
-                piloser.sanitypd.client.HiddenNameWatcher.mentionCheck(text);
-            }
-            catch (Throwable t)
-            {
-                piloser.sanitypd.client.HiddenNameWatcher.logFallback(t);
+                boolean paidWithTheFragment = piloser.sanitypd.client.MemoryTapeGate.consumeExcuse();
+
+                try
+                {
+                    if (!paidWithTheFragment)
+                        piloser.sanitypd.client.HiddenNameWatcher.mentionCheck(text);
+                }
+                catch (Throwable t)
+                {
+                    // The catch covers the case where the easter egg itself fails (for example halt() being
+                    // unavailable in some environment); this try must never swallow the crash and silently
+                    // disable the hidden content, so failures are logged at ERROR level.
+                    piloser.sanitypd.client.HiddenNameWatcher.logFallback(t);
+                }
+
+                // Deliberately silent, and deliberately after the crash helper: whether the fragment was
+                // handed over or the crash helper failed, the text is dropped here. "The text is never
+                // stored" is part of the easter egg - leaving it in the pool would put the name on screen.
+                // The line below is what makes that outcome visible: without it, "silently dropped" and
+                // "never ran" look identical in a log, and this branch is nothing but silence by design.
+                if (paidWithTheFragment)
+                    SanityMod.LOGGER.info("[HIDDEN-NAME] the name was paid for with the hidden fragment; "
+                            + "the text was dropped, not stored");
+
+                return ClientResult.ok(0);
             }
 
             piloser.sanitypd.client.MentalHintManager.AddResult result =

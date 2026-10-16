@@ -1,0 +1,70 @@
+“Is it done?”
+“Yes, ■■■, it is handled”
+“But I have a question, and I am not sure whether I may ask......”
+“Go on”
+“Would imprisoning Cacomorth inside a fake player truly work?”
+“To a degree, it does”
+“Why?”
+“Here, the 「player」 itself is a pure vessel”
+“It does not resist. Every trace of {player}, reproduced exactly”
+“And a pure thing cannot be 「destroyed」, however it is broken”
+“From {player}'s point of view, that is death and respawn”
+“Even if it deliberately restrains itself, refusing a second life”
+“Death is only the vessel being stored elsewhere”
+“As long as {player} takes it back, the rules of the 「save」 can be changed at any time”
+“......To take hold of the player again”
+“And the {player} that Cacomorth transcribed is not pure to begin with”
+“It was produced through the void, so in essence it cannot be told apart from us”
+“It even had a similar consciousness forged for it”
+“So even if it is hidden away, we can still find traces of it”
+“......That gives us a good deal of convenience”
+“So only in the end can we 「take back」 the fake player”
+“Use its identity to draw Cacomorth out as far as it will come”
+“Erase that consciousness, and shut it inside its own body”
+“Why not simply kill Cacomorth?”
+“Its command of the void is deep. Without anyone noticing, it can......”
+“Use the void's uncertainty and its connection to the foundations of the world to modify data”
+“We can never catch all of Cacomorth, because we cannot step outside the save”
+“But the void's uncertainty is also its weakness”
+“{player}, as the master of the save, is the embodiment of certainty”
+“Even a transcription inherits a part of those functions”
+“And for reasons unknown, Cacomorth watches {player} more closely than almost anything”
+“......Even towards a counterfeit”
+“Objectively, the finest ground for an ambush we could ask for”
+“The fake player can only be used once, but for an imprisonment that is enough”
+“So that is how it is......”
+“But Cacomorth cannot truly be erased, can it?”
+“No. It hates itself, and inside the fake player it will surely go mad by degrees”
+“But if it is not restrained, then to reach {player} it will surely do something even more insane”
+“......So it is only effective for a time?”
+“We cannot let it do that”
+“......”
+“But is there really no other way?”
+“There is”
+“But we need {player}'s help”
+“Split off part of its memory. Hide some of what it holds. Draw {player}'s attention”
+“The more interested the player is, the more they learn, the more they recite the true name, the more firmly it is 「anchored」”
+“That way, however mad Cacomorth is”
+“We can bind it to the player again, and suppress its uncertainty”
+“In the end, as long as the player absorbs Cacomorth's power......”
+“It can be imprisoned in the truest sense inside {player}'s body”
+“That is a vessel without a self. Undying, indestructible. In theory, nothing safer”
+“In return, {player} will hold a part of the void's power”
+“......”
+“Do we really have to discuss this? Will Cacomorth not......?”
+“Rest easy, the fake player is completely isolated from the outside, it cannot hear”
+“Even if it escapes, in a state of complete madness its eyes will hold only {player}”
+“It will not care about anyone else, and it will not hurt them either”
+“......Cacomorth has power without knowing it”
+“It takes only a small lie to destroy its meaning”
+“If its passion for {player} were to lessen even slightly, our work would be far more troublesome”
+“So it is a blessing among misfortunes, at least”
+“......I understand”
+“But in this conversation, you deliberately hid almost none of the crucial parts”
+“That will not let {player}......”
+“Haha, surely you jest”
+“Who ever said this conversation had only the two of us?”
+“We need only ■■■■■”
+“And 「it」 can be seen”
+“......We have been waiting for you a long time”
+[darkred]“{player}”

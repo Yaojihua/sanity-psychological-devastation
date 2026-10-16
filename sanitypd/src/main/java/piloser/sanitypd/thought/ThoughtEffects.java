@@ -47,7 +47,7 @@ public final class ThoughtEffects
     /**
      * Irritability: attack damage <b>added on top of</b> what the mania effect itself grants.
      *
-     * <p>The owner's rule is "the mania effect's attack bonus is raised by an extra ...", and it has to be an
+ * <p>The rule is "the mania effect's attack bonus is raised by an extra...", and it has to be an
      * addition rather than its own multiplier: both modifiers use {@code MULTIPLY_TOTAL}, which vanilla sums
      * before multiplying the base, so +50% from mania and +20% from here mean +70% - not +80%.
      */
@@ -67,12 +67,65 @@ public final class ThoughtEffects
      * <p>Stored as a penalty ({@code -0.20} = "you may only recover to 80% of the maximum") because that is
      * what the tooltip prints and colours: the value keeps the project's sign convention, where a negative
      * number is a debuff and is drawn red. {@link #recoveryCeilingFraction} turns it back into the ceiling the
-     * mechanic applies. The owner's numbers are 1 / 3 / 5 chaos-restraint thoughts -&gt; 80% / 70% / 60%.
+ * mechanic applies. The numbers are 1 / 3 / 5 chaos-restraint thoughts -&gt; 80% / 70% / 60%.
      *
      * <p>The sanity <b>maximum</b> itself is deliberately untouched: moving it would shift the bar, the HUD and
      * every other mechanic that reads it. This only stops recovery, which is why it is called a ceiling.
      */
     public static final float[] DEPERSONALIZATION = { -0.20f, -0.30f, -0.40f };
+
+    /**
+     * Non-Suicidal Self-Injury: the chance that one 60-second period ends in the act.
+     *
+     * <p>Stored as a <b>penalty</b> ({@code -0.40} = "a 40% chance"), the same shape Depersonalization uses and
+     * for the same two reasons: the number is drawn by {@link ThoughtTooltips} as the absolute value in the
+     * debuff colour, and the sign is what selects the shared "this restriction deepens" header sentence
+     * instead of the "additional bonus" one - which would promise a bonus for a mechanic that only ever hurts
+     * the player. {@link #selfInjuryChance} turns it back into the probability the mechanic rolls against.
+     *
+ * <p>The numbers are 40% / 50% / 60% at 1 / 3 / 5 chaos-restraint thoughts.
+     */
+    public static final float[] NON_SUICIDAL_SELF_INJURY = { -0.40f, -0.50f, -0.60f };
+
+    /** Non-Suicidal Self-Injury: the sanity fraction the player has to stay below for the act to arm. */
+    public static final float SELF_INJURY_SANITY = 0.25f;
+
+    /** Non-Suicidal Self-Injury: how long sanity has to stay below that fraction first, in ticks (180 s). */
+    public static final int SELF_INJURY_SUSTAIN_TICKS = 3600;
+
+    /** Non-Suicidal Self-Injury: the length of one roll period, in ticks (60 s). */
+    public static final int SELF_INJURY_INTERVAL_TICKS = 1200;
+
+    /**
+     * Non-Suicidal Self-Injury: how long the act is announced before it happens, in ticks (5 s).
+     *
+     * <p>The roll happens this far before the end of the period, so the client half has the whole warning
+     * window to fade the inner lines out, pull the view out of focus and duck the sound. Reading the roll at
+     * the last tick would leave nothing to announce.
+     */
+    public static final int SELF_INJURY_WARN_TICKS = 100;
+
+    /** Non-Suicidal Self-Injury: the health the wound takes. */
+    public static final float SELF_INJURY_DAMAGE = 5.0f;
+
+    /** Non-Suicidal Self-Injury: the sanity the act gives back. */
+    public static final float SELF_INJURY_SANITY_RESTORE = 5.0f;
+
+    /**
+ * Sanity the act <b>costs</b> when it happens at or above the arm threshold (owner's rule, this round).
+     *
+     * <p>Below {@link #SELF_INJURY_SANITY} the act gives {@link #SELF_INJURY_SANITY_RESTORE} back; at or above
+     * it, it takes this much instead. The relief belongs to the state the mechanic is about - using it as a free
+     * reset while sane has to hurt - and the two halves read the same threshold, so they cannot disagree about
+     * which side of the line the player is on.
+     */
+    public static final float SELF_INJURY_SANITY_PENALTY = 20.0f;
+
+    /** Non-Suicidal Self-Injury: the slowness the wound leaves behind, in ticks (6 s). */
+    public static final int SELF_INJURY_SLOWNESS_TICKS = 120;
+
+    /** Non-Suicidal Self-Injury: the amplifier of that slowness (0 = vanilla "Slowness I"). */
+    public static final int SELF_INJURY_SLOWNESS_AMPLIFIER = 0;
 
     /**
      * Fight or Flight: the two mutually exclusive states, each a pair of (attack, movement) multipliers.
@@ -121,6 +174,15 @@ public final class ThoughtEffects
         if (item == ItemRegistry.THOUGHT_STRESS_INDUCED_ANALGESIA.get())
             return ANALGESIA_ORDER;
 
+        if (item == ItemRegistry.THOUGHT_STOCKHOLM_SYNDROME.get())
+            return STOCKHOLM_ORDER;
+
+        if (item == ItemRegistry.THOUGHT_OVERDOSE.get())
+            return OVERDOSE_ORDER;
+
+        if (item == ItemRegistry.THOUGHT_HALLUCINATION_CONVERGENT_EVOLUTION.get())
+            return CONVERGENT_ORDER;
+
         // Catharsis states its numbers as words ("6 seconds", "40%"), so it has none to colour.
         return EMPTY;
     }
@@ -158,6 +220,51 @@ public final class ThoughtEffects
     /** Stress-Induced Analgesia: what it prints - one value, the health restored. */
     public static final float[] ANALGESIA_ORDER = { ANALGESIA_HEAL };
 
+    // ---------------------------------------------------------------- Stockholm Syndrome
+    // Another untiered thought that pays out on being hurt, so it follows the same split as the one above:
+    // the rate limit is a condition and stays a plain word in the sentence, while the payout is a value the
+    // tooltip colours.
+
+    /** Stockholm Syndrome: the sanity restored each time it pays out. */
+    public static final float STOCKHOLM_SANITY = 5.0f;
+
+    /** Stockholm Syndrome: the shortest gap between two payouts, in ticks (0.5 s = 10 ticks). */
+    public static final int STOCKHOLM_COOLDOWN_TICKS = 10;
+
+    /** Stockholm Syndrome: what it prints - one value, the sanity restored. */
+    public static final float[] STOCKHOLM_ORDER = { STOCKHOLM_SANITY };
+
+    // ---------------------------------------------------------------- Overdose
+
+    /** Overdose: the fraction taken off every mood stabilizer's cooldown. */
+    public static final float OVERDOSE_COOLDOWN_CUT = 0.45f;
+
+    /** Overdose: how long the nausea lasts when a stabilizer is used, in ticks (10 s). */
+    public static final int OVERDOSE_NAUSEA_TICKS = 200;
+
+    /**
+     * Overdose: what it prints - one value, the cooldown cut.
+     *
+     * <p>The nausea is stated in words ("10 seconds") like every other duration in this mod's sentences, so
+     * the thought has a single coloured number and no mixed units to render. ⚠️ Because it <b>is</b> words,
+     * this constant and the two language entries are the only copies of that duration - change all three
+ * together (the author moved it from 6 s to 10 s one round after it shipped).
+     */
+    public static final float[] OVERDOSE_ORDER = { OVERDOSE_COOLDOWN_CUT };
+
+    // ---------------------------------------------------------------- Hallucination: Convergent Evolution
+
+    /**
+     * Convergent Evolution: the fraction added to every inner shard and clump the holder causes to drop.
+     *
+     * <p>One number, one place: the drop rule in {@code loot.InnerLoot} reads this constant and the sentence
+     * prints it, so the tooltip cannot promise a different figure than the code pays.
+     */
+    public static final float CONVERGENT_BONUS = 0.70f;
+
+    /** Convergent Evolution: what it prints - one value, the bonus. */
+    public static final float[] CONVERGENT_ORDER = { CONVERGENT_BONUS };
+
     /**
      * Whether an untiered thought's printed values are fractions (written as percentages) or plain amounts.
      *
@@ -173,13 +280,14 @@ public final class ThoughtEffects
      */
     public static boolean untieredValuesArePercent(Item item)
     {
-        return item != ItemRegistry.THOUGHT_STRESS_INDUCED_ANALGESIA.get();
+        return item != ItemRegistry.THOUGHT_STRESS_INDUCED_ANALGESIA.get()
+                && item != ItemRegistry.THOUGHT_STOCKHOLM_SYNDROME.get();
     }
 
     /**
      * Which stored value belongs to which printed line, per untiered thought.
      *
-     * <p>Fight or Flight prints four values across <b>two</b> lines (the owner asked for the semicolon-separated
+ * <p>Fight or Flight prints four values across <b>two</b> lines (the design requires the semicolon-separated
      * sentence to be split: "给战斗或逃跑文本分下行,只有分号分隔不明显"), while the other untiered thoughts print
      * one value on one line. Both are described here so {@link #untieredValuesOf} stays the single stored
      * order and the tooltip never has to guess where a line starts.
@@ -193,10 +301,13 @@ public final class ThoughtEffects
 
         if (item == ItemRegistry.THOUGHT_SLEEP_DEBT.get()
                 || item == ItemRegistry.THOUGHT_INSTRUMENTAL_AGGRESSION.get()
-                || item == ItemRegistry.THOUGHT_STRESS_INDUCED_ANALGESIA.get())
+                || item == ItemRegistry.THOUGHT_STRESS_INDUCED_ANALGESIA.get()
+                || item == ItemRegistry.THOUGHT_STOCKHOLM_SYNDROME.get()
+                || item == ItemRegistry.THOUGHT_OVERDOSE.get()
+                || item == ItemRegistry.THOUGHT_HALLUCINATION_CONVERGENT_EVOLUTION.get())
             return new int[] { 1 };
 
-        return new int[] { 0 };                        // Catharsis: one line, no numbers
+        return new int[] { 0 };                        // Catharsis, the four creature visions: no numbers
     }
 
     /** How many values the given printed line of an untiered thought carries. */
@@ -281,11 +392,41 @@ public final class ThoughtEffects
             }
         }
 
+ // An empowered thought acts at the top tier no matter how few copies are in the chain - the
+        // "ignores the stacking ladder and simply acts at its top tier". This is deliberately done HERE and not
+ // in countOf: mindset activation reads countOf directly, and the rule is that the effect changes
+        // while activation does not.
+        if (item instanceof ThoughtItem thought && holdsEmpowered(chain, thought))
+            count = Math.max(count, TIER_THRESHOLDS[TIER_THRESHOLDS.length - 1]);
+
         if (count >= TIER_THRESHOLDS[2])
             return 2;
         if (count >= TIER_THRESHOLDS[1])
             return 1;
         return count >= TIER_THRESHOLDS[0] ? 0 : -1;
+    }
+
+    /**
+     * Whether the chain holds an empowered copy of this thought.
+     *
+     * <p>Reads the chain's own container rather than a count, because being empowered is a property of the
+     * stack, not of how many are stacked. Server-side only in practice: {@code countOf} answers from a synced
+     * int array on the client, and the client is not told about the tag - which is why the tooltip asks the
+     * stack it is drawing instead (see {@code ThoughtTooltips}).
+     */
+    private static boolean holdsEmpowered(IThoughtChain chain, ThoughtItem thought)
+    {
+        net.minecraft.world.Container container = chain.container();
+
+        for (int slot = 0; slot < container.getContainerSize(); slot++)
+        {
+            net.minecraft.world.item.ItemStack stack = container.getItem(slot);
+
+            if (stack.getItem() == thought && EmpoweredThought.is(stack))
+                return true;
+        }
+
+        return false;
     }
 
     /**
@@ -323,6 +464,8 @@ public final class ThoughtEffects
             return CONVERSION_DISORDER;
         if (item == ItemRegistry.THOUGHT_DEPERSONALIZATION.get())
             return DEPERSONALIZATION;
+        if (item == ItemRegistry.THOUGHT_NON_SUICIDAL_SELF_INJURY.get())
+            return NON_SUICIDAL_SELF_INJURY;
         return NONE;
     }
 
@@ -333,7 +476,7 @@ public final class ThoughtEffects
      * number multiplies the damage. A zero here would silently delete a player's whole overflow, which is a
      * far worse failure than a missing bonus, so the neutral value is stated here instead of at each call.
      *
-     * <p>The owner's rule (2026-10-04) is that it also covers inner entities, which have no sanity to
+ * <p>The rule is that it also covers inner entities, which have no sanity to
      * overflow: for them the whole psychic amount is converted by {@code INNER_PSYCHIC_MULTIPLIER}, and this
      * same ratio multiplies that result. Both conversion sites therefore read this one method.
      */
@@ -342,6 +485,35 @@ public final class ThoughtEffects
         int index = tierIndex(attacker, ItemRegistry.THOUGHT_CONVERSION_DISORDER.get());
 
         return index < 0 ? 1.0f : CONVERSION_DISORDER[index];
+    }
+
+    /**
+     * Non-Suicidal Self-Injury: the probability one 60-second period ends in the act, for this player.
+     *
+     * <p>The ladder stores it as a penalty (see {@link #NON_SUICIDAL_SELF_INJURY}), so the sign is dropped
+     * here - once - rather than at the call site: a percentage that arrives negative would make the roll never
+     * pass, and the symptom would be "the thought never does anything" with no error anywhere.
+     *
+     * @return 0.0 to 1.0; 0 when the thought is not in the chain
+     */
+    public static float selfInjuryChance(Entity owner)
+    {
+        return Math.abs(tierValue(owner, ItemRegistry.THOUGHT_NON_SUICIDAL_SELF_INJURY.get()));
+    }
+
+    /**
+     * Whether this item's <b>current-effect</b> line prints a fuller sentence than its 1/3/5 ladder lines.
+     *
+     * <p>For every thought written before this one the two are the same string: the ladder entry holds the
+     * sentence and the "current effect" line reuses it, which reads well while a tier sentence is one short
+     * clause. A thought whose mechanic is long enough that repeating it three times in the detail pane becomes
+     * unreadable states its full sentence once per tier under the {@code .current1/.current3/.current5} keys
+     * and keeps the ladder lines to the clause that actually changes. The choice lives here, next to the
+     * ladders, rather than in the tooltip: a tooltip-side list is exactly what the next thought forgets.
+     */
+    public static boolean hasSeparateCurrentLine(Item item)
+    {
+        return item == ItemRegistry.THOUGHT_NON_SUICIDAL_SELF_INJURY.get();
     }
 
     /**
@@ -370,7 +542,7 @@ public final class ThoughtEffects
      *
      * <p>Lives here rather than in the tooltip for the same reason the ladders do: the tooltip used to carry
      * its own copy of this table <b>and</b> its own "count to tier" mapping, which is how it ended up
-     * highlighting a tier the effect was not on (owner: "高亮有bug"). One table, read by {@link #tierIndex}
+ * highlighting a tier the effect was not on ("高亮有bug"). One table, read by {@link #tierIndex}
      * and by {@link #tierThreshold}.
      */
     private static final int[] TIER_THRESHOLDS = { 1, 3, 5 };
@@ -390,7 +562,7 @@ public final class ThoughtEffects
     /**
      * The one axis whose count decides this item's tier, or {@code null} when the highest axis does.
      *
-     * <p>Depersonalization is the first <b>tiered</b> thought sitting on two axes, and the owner's rule is
+ * <p>Depersonalization is the first <b>tiered</b> thought sitting on two axes, and the rule is
      * "count chaos-restraint thoughts". Without this override the default (highest axis wins) would let five
      * madness thoughts push its recovery ceiling to the third tier - a silent behaviour nobody asked for.
      */
@@ -404,7 +576,7 @@ public final class ThoughtEffects
      *
      * <p>The tooltip's header sentence names the axes it scales with, so it has to name exactly the ones
      * {@link #tierIndex} counts. Printing all of an item's axes would promise that five madness thoughts
-     * deepen Depersonalization's restriction - which is the opposite of what the mechanic does (owner's rule:
+ * deepen Depersonalization's restriction - which is the opposite of what the mechanic does (owner's rule:
      * it scales with chaos-restraint thoughts only). This is the single place that answers "which axes does
      * the ladder read", used by the mechanics through {@link #tierIndex} and by the tooltip through here.
      */
@@ -476,6 +648,9 @@ public final class ThoughtEffects
         // Command Hallucination states no sanity number of its own: its condition is the inner line being
         // on screen, and that line has already been chosen by the sanity rules. Returning a number here
         // would put a threshold into a sentence that has none.
+        if (item == ItemRegistry.THOUGHT_NON_SUICIDAL_SELF_INJURY.get())
+            return SELF_INJURY_SANITY;
+
         return 0f;
     }
 

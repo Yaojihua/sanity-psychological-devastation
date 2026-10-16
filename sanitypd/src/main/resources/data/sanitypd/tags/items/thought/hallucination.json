@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "sanitypd:thought_hallucination_horse",
+    "sanitypd:thought_hallucination_human",
+    "sanitypd:thought_hallucination_sheep",
+    "sanitypd:thought_hallucination_fish",
+    "sanitypd:thought_hallucination_convergent_evolution"
+  ]
+}

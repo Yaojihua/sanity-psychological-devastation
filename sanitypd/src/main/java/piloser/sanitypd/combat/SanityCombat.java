@@ -169,7 +169,7 @@ public final class SanityCombat
         boolean inner = SanityTags.isInnerEntity(target);
         ISanity cap = inner ? null : target.getCapability(SanityProvider.CAP).orElse(null);
 
-        // Psychic resistance runs FIRST, as the owner ruled, and it has no cap. Resistance is what this mod
+ // Psychic resistance runs FIRST, as the author ruled, and it has no cap. Resistance is what this mod
         // hands the player (a stabilizer, a mindset), so clipping it at MAX_ENCHANTMENT_REDUCTION made 100
         // points worth exactly 80 and quietly devalued every source above that line.
         // The factor is floored at zero: a resistance above 1.0 must mean "nothing gets through", never
@@ -188,7 +188,7 @@ public final class SanityCombat
         //
         // This is the SECOND stage: psychic resistance has already been taken off the amount above. Both
         // stages multiply, so the order is a matter of reading rather than of arithmetic - but it is the order
-        // the owner specified, and it is the one the comments around the two stages now describe.
+ // the author specified, and it is the one the comments around the two stages now describe.
         amount = applyPsychicProtection(target, amount);
 
         if (inner)
@@ -207,7 +207,7 @@ public final class SanityCombat
             // which broadcasts two death messages and overwrites the death screen with a generic one, the
             // damage is queued and applied at the end of the tick (see OverflowDamageQueue).
             float innerResistance = innerPsychicResistanceOf(target);
-            // Conversion Disorder raises the converted amount here too (owner, 2026-10-04): inner entities
+ // Conversion Disorder raises the converted amount here too (by design): inner entities
             // have no sanity to overflow, so the "overflow ratio" acts on the whole converted amount instead.
             // The ratio is 1.0 for every attacker without the thought, which is what keeps this line from
             // changing any existing number.
@@ -222,7 +222,7 @@ public final class SanityCombat
         // The resistance stage is already behind us: it was applied above, before the protection
         // enchantment, so this branch only drains what survived both. The two stages multiply, so moving one
         // past the other changes no number - what changed is that resistance is no longer clipped at 80%, and
-        // that the code now reads in the order the owner specified.
+ // that the code now reads in the order the author specified.
 
         float current = cap.getSanity();
         float deducted = Math.min(current, amount);
@@ -237,11 +237,53 @@ public final class SanityCombat
         float overflow = amount - deducted;
         if (overflow > 0.0f)
         {
-            // Conversion Disorder: the owner's ratio on the overflow itself (1.0 when the attacker does not
+ // Conversion Disorder: the ratio on the overflow itself (1.0 when the attacker does not
             // hold it, so this is a no-op for every other source in the game).
             overflow *= piloser.sanitypd.thought.ThoughtEffects.overflowConversion(source.getEntity());
-            OverflowDamageQueue.enqueue(target, overflow, source.getEntity());
+            // The death-message override currently in force (shadow TNT only; null for every other source)
+            // travels with the entry, because by the time the queue resolves it the damage source is gone.
+            OverflowDamageQueue.enqueue(target, overflow, source.getEntity(), peekOverflowMessageType());
         }
+    }
+
+    /**
+     * The death-message type an in-flight psychic hit wants for its overflow segment, or {@code null}.
+     *
+     * <p>A thread-local <b>stack</b>, not a plain field: {@code dealPsychic} can be re-entered from inside a
+     * hurt handler (the inner-entity melee bonus does exactly that), and the inner call must not clobber the
+     * outer one's choice or clear it early. Same shape as {@link #PSYCHIC_DEPTH}, for the same reason.
+     */
+    private static final ThreadLocal<java.util.ArrayDeque<net.minecraft.resources.ResourceKey<net.minecraft.world.damagesource.DamageType>>>
+            OVERFLOW_MESSAGE_TYPE = ThreadLocal.withInitial(java.util.ArrayDeque::new);
+
+    /**
+     * Pushes a death-message override for the duration of one psychic hit.
+     *
+     * @return whether something was pushed, so the caller knows whether it must pop
+     */
+    public static boolean pushOverflowMessageType(net.minecraft.resources.ResourceKey<net.minecraft.world.damagesource.DamageType> type)
+    {
+        if (type == null)
+            return false;
+
+        OVERFLOW_MESSAGE_TYPE.get().push(type);
+        return true;
+    }
+
+    /** Pops one override. Only call it after {@link #pushOverflowMessageType} returned {@code true}. */
+    public static void popOverflowMessageType()
+    {
+        java.util.ArrayDeque<net.minecraft.resources.ResourceKey<net.minecraft.world.damagesource.DamageType>> stack =
+                OVERFLOW_MESSAGE_TYPE.get();
+
+        if (!stack.isEmpty())
+            stack.pop();
+    }
+
+    /** The override in force, or {@code null} when this hit is an ordinary one. */
+    public static net.minecraft.resources.ResourceKey<net.minecraft.world.damagesource.DamageType> peekOverflowMessageType()
+    {
+        return OVERFLOW_MESSAGE_TYPE.get().peek();
     }
 
     /**
@@ -565,7 +607,11 @@ public final class SanityCombat
                 || SanityDamageTypes.isTrueDamage(source)
                 || SanityDamageTypes.isPsychicOverflow(source)
                 || SanityDamageTypes.isCrawlerExplosion(source)
-                || SanityDamageTypes.isManiaDamage(source);
+                || SanityDamageTypes.isManiaDamage(source)
+                // The three shadow TNT overflow types belong on this list for the same reason the crawler's
+                // does: they are this mod's own damage, so they must not trigger weapon enchantments or count
+                // the "hurt a friendly creature" penalty a second time.
+                || SanityDamageTypes.isShadowTnt(source);
     }
 
     /** An attacker with "confusion" has a 25% chance to deal no damage at all. */
@@ -782,7 +828,7 @@ public final class SanityCombat
      * How much mania damage this entity takes right now, honouring the madness mindset's floor.
      *
      * <h2>The floor, and how vanilla does the same thing</h2>
-     * The owner's rule is that with the madness mindset active the mania damage can no longer kill: health
+ * The rule is that with the madness mindset active the mania damage can no longer kill: health
      * stops at four hearts. That is exactly how hunger and poison behave in vanilla - they do not stop
      * hurting, they stop <b>at</b> a floor, so the player survives with a sliver of health rather than
      * becoming immune.
@@ -797,8 +843,8 @@ public final class SanityCombat
      * <h2>Why this is public and called by the self-check</h2>
      * It is the one piece of the mania path that can be asserted without a damage pipeline: a
      * {@code FakePlayer} on a dedicated server refuses <b>every</b> {@code hurt()} call (measured
-     * 2026-10-03: a plain 1-point magic hit returns false and health does not move), so "he is still alive
-     * after the tick" cannot be observed there at all. The arithmetic can, and that is what the owner's rule
+ *: a plain 1-point magic hit returns false and health does not move), so "he is still alive
+ * after the tick" cannot be observed there at all. The arithmetic can, and that is what the rule
      * is about; whether the damage lands is checked on a real client instead.
      */
     public static float maniaDamageFor(LivingEntity entity)

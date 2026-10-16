@@ -137,6 +137,27 @@ public final class MentalHintProbe
             }
         }
 
+        // The two separate, editable pools: the expiry warning one and the self-injury one. Both are outside
+        // the madness tiers and outside tierForMadness, both are command-editable, and the self-injury pool's
+        // language keys are hint5X (hint4X belongs to the read-only third voice).
+        try
+        {
+            int expiry = ((Number) manager.getField("INDEX_EXPIRY").get(null)).intValue();
+            int selfInjury = ((Number) manager.getField("INDEX_SELF_INJURY").get(null)).intValue();
+            int expiryCount = (int) manager.getMethod("defaultCount", int.class).invoke(null, expiry);
+            int selfInjuryCount = (int) manager.getMethod("defaultCount", int.class).invoke(null, selfInjury);
+
+            boolean ok = expiry == 3 && selfInjury == 4 && expiryCount == 3 && selfInjuryCount == 8;
+
+            ProbeLog.log("HINT-24", String.format(java.util.Locale.ROOT,
+                    "separate pools expiry=%d(%d lines) selfInjury=%d(%d lines) => %s",
+                    expiry, expiryCount, selfInjury, selfInjuryCount, ok ? "PASS" : "FAIL(expected 3(3)/4(8))"));
+        }
+        catch (Throwable t)
+        {
+            ProbeLog.log("HINT-24", "separate pool indices unreadable: " + t);
+        }
+
         // Whether the custom pool and the immediate-display API are all present.
         String[][] api = {
                 { "addHint", "int,java.lang.String" },

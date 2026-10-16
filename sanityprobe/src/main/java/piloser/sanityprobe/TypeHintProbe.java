@@ -17,16 +17,16 @@ import java.util.Locale;
  *
  * <p>The mod grows one read-only hint pool per thought type: composure joins the mild tier, madness /
  * endurance / servitude / chaos restraint join the severe tier, and each pool only takes part while the
- * player's chain holds a thought of that type. The owner's rules for them are: mixed into the tier's pool,
+ * player's chain holds a thought of that type. The rules for them are: mixed into the tier's pool,
  * invisible to {@code /sanity hint list}, impossible to edit through the command, and a text repeating one
  * of their lines is refused silently.
  *
  * <p>What this group asserts, and why:
  * <ul>
- *   <li><b>the table</b>: five pools with the owner's counts (4/9/5/3/5) and tier mapping, and only the
+ * <li><b>the table</b>: five pools with the counts (4/9/5/3/5) and tier mapping, and only the
  *       chaos pool coloured - re-read from the mod, not copied from the document;</li>
  *   <li><b>the chaos colour differs from the third voice</b> ({@code 0x8B2E2E} vs {@code 0x8B0000}): the
- *       owner asked for "dark red, distinguishable", so the two constants are compared <i>here</i>;</li>
+ * owner asked for "dark red, distinguishable", so the two constants are compared <i>here</i>;</li>
  *   <li><b>the language values resolve</b>: all 26 lines come back non-blank through the mod's own
  *       resolver, so a typo'd key cannot hide behind a table that looks right;</li>
  *   <li><b>they stay out of the command</b>: none of their texts appears in the candidate list the
@@ -45,7 +45,7 @@ import java.util.Locale;
 @Mod.EventBusSubscriber(modid = SanityProbe.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class TypeHintProbe
 {
-    /** Type ids in the order the owner listed them. */
+ /** Type ids in the order the author listed them. */
     private static final String[] TYPES = { "composure", "madness", "endurance", "servitude", "chaos_restraint" };
 
     /** Expected line count per pool, mirroring TypeHintSpec.POOLS. */
@@ -54,9 +54,11 @@ public final class TypeHintProbe
     /** Expected madness tier per pool: composure is mild (0), the other four are severe (1). */
     private static final int[] TIERS = { 0, 1, 1, 1, 1 };
 
-    private static final int EXPECTED_CHAOS_COLOR = 0x8B2E2E;
     private static final int EXPECTED_THIRD_VOICE_COLOR = 0x8B0000;
     private static final int EXPECTED_LINES = 26;
+
+    /** Index of the chaos-restraint line that leaves the pool once the four story fragments are read. */
+    private static final int EXPECTED_ANCHORED_DROP = 3;
 
     /** Mild-tier picks sampled for the display-behaviour check; the mild draw is a plain roll (no bag). */
     private static final int MILD_SAMPLES = 8;
@@ -130,7 +132,7 @@ public final class TypeHintProbe
 
             int lines = (Integer) spec.getMethod("totalLineCount").invoke(null);
             List<?> keys = (List<?>) spec.getMethod("allKeys").invoke(null);
-            int chaosColor = ((Number) spec.getField("COLOR_CHAOS_RESTRAINT").get(null)).intValue();
+            int anchoredDrop = ((Number) spec.getField("CHAOS_RESTRAINT_ANCHORED_DROP_INDEX").get(null)).intValue();
 
             StringBuilder shape = new StringBuilder();
             boolean tableOk = pools.size() == TYPES.length && lines == EXPECTED_LINES && keys.size() == EXPECTED_LINES;
@@ -167,12 +169,42 @@ public final class TypeHintProbe
             int thirdVoice = ((Number) Class.forName("piloser.sanitypd.client.HiddenVoicePool")
                     .getField("COLOR_DARK_RED").get(null)).intValue();
 
-            boolean colourOk = chaosColor == EXPECTED_CHAOS_COLOR && thirdVoice == EXPECTED_THIRD_VOICE_COLOR
-                    && chaosColor != thirdVoice;
+            // Every type pool is drawn in the tier's normal white. The chaos-restraint pool carried its own
+ // dark red (the type's tooltip colour) until the design requires the white, so the judgement is now
+            // "no pool is coloured at all" plus "the third voice is still its own dark red".
+            boolean colourOk = coloured == 0 && thirdVoice == EXPECTED_THIRD_VOICE_COLOR;
 
             ProbeLog.log("TYPEHINT-43", String.format(Locale.ROOT,
-                    "colour chaos=%06X thirdVoice=%06X distinct=%s => %s",
-                    chaosColor, thirdVoice, chaosColor != thirdVoice, colourOk ? "OK" : "CHECK"));
+                    "colour allWhite=%s thirdVoice=%06X => %s",
+                    coloured == 0, thirdVoice, colourOk ? "OK" : "CHECK"));
+
+            // The one conditional row: only the chaos-restraint half-memory leaves the pool, and only once the
+            // story is anchored. The condition itself is per-save (HiddenVoicePool#anchored), so what is
+ // asserted here is the table shape - exactly one row carries a drop index, and it is the.
+            int dropInChaos = -1;
+            int conditionalRows = 0;
+
+            for (Object pool : pools)
+            {
+                Object type = pool.getClass().getMethod("type").invoke(pool);
+                String id = String.valueOf(type.getClass().getMethod("id").invoke(type));
+                int drop = (Integer) pool.getClass().getMethod("dropsWhenAnchored").invoke(pool);
+
+                if (drop < 0)
+                    continue;
+
+                conditionalRows++;
+
+                if ("chaos_restraint".equals(id))
+                    dropInChaos = drop;
+            }
+
+            boolean dropOk = anchoredDrop == EXPECTED_ANCHORED_DROP && dropInChaos == anchoredDrop
+                    && conditionalRows == 1;
+
+            ProbeLog.log("TYPEHINT-43", "anchored drop index=" + anchoredDrop + " rows=" + conditionalRows
+                    + " chaos=" + dropInChaos + " => " + (dropOk ? "OK" : "CHECK(expected "
+                    + EXPECTED_ANCHORED_DROP + " on exactly the chaos row)"));
 
             // The language values behind the table, resolved through the mod's own resolver: a key that does
             // not resolve comes back as the raw key (or blank), which this catches.
@@ -263,7 +295,7 @@ public final class TypeHintProbe
                 List<?> live = (List<?>) activeLines.invoke(null, tier);
 
                 // Every live line must belong to a type the player actually holds, and every held type whose
-                // pool joins this tier must contribute its lines - that is the owner's "only while held" rule.
+ // pool joins this tier must contribute its lines - that is the "only while held" rule.
                 for (Object line : live)
                 {
                     Object type = line.getClass().getMethod("type").invoke(line);
@@ -344,7 +376,7 @@ public final class TypeHintProbe
                 if (hidden)
                     hiddenTypePicks++;
 
-                if (color != 0xFFFFFF && color != EXPECTED_CHAOS_COLOR)
+                if (color != 0xFFFFFF)
                     badColour++;
             }
 

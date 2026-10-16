@@ -29,7 +29,7 @@ import piloser.sanitypd.item.ItemRegistry;
  * requirement.
  *
  * <h2>The cooldown is spent even when the player is at full health</h2>
- * The trigger is the <b>hurt</b>, not the healing: the owner's wording is "at most once every 0.3 seconds".
+ * The trigger is the <b>hurt</b>, not the healing: the wording is "at most once every 0.3 seconds".
  * Bank the timer instead and a player could take chip damage until the window is free and then eat one big
  * hit with the heal waiting for it, which is a different mechanic from the one that was specified.
  */

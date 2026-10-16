@@ -48,7 +48,7 @@ import piloser.sanitypd.effect.SanityRegenEffect;
  *
  * <p>Food properties do <b>not</b> use {@code alwaysEat()}: a macaron cannot be eaten on a full hunger
  * bar. The sanity and Regeneration parts therefore no longer bypass the hunger gate - a player who wants
- * them has to make room first. That is the owner's ruling: eating is eating, and a full stomach refuses
+ * them has to make room first. That is the ruling: eating is eating, and a full stomach refuses
  * the food whatever else the food would have done.
  */
 public class MacaronItem extends Item

@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gwg",
+    "lcl",
+    "gtg"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "w": {
+      "tag": "minecraft:wool"
+    },
+    "l": {
+      "item": "minecraft:leather"
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    },
+    "t": {
+      "item": "minecraft:lead"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_hallucination_sheep",
+    "count": 1
+  }
+}

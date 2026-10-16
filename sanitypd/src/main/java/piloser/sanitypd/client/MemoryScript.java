@@ -30,11 +30,11 @@ import piloser.sanitypd.thought.TypeHintSpec;
  * The script is displayed prose, so it sits outside the Java sources for three reasons: it is prose
  * rather than behaviour; the project's de-identification gate scans Java comments and literals for words
  * that only make sense to the two people building this mod, and the script legitimately contains such
- * words (it calls the player "the master of the world"), so a keyword check flagged a line of the owner's
+ * words (it calls the player "the master of the world"), so a keyword check flagged a line of the
  * own writing; and wording can be revised without touching code. Vanilla's end poem is a text resource
  * for the same kind of reason.
  *
- * <p>The double quotes are part of the text: the owner asked for them to be kept on purpose. The
+ * <p>The double quotes are part of the text: the design requires them to be kept on purpose. The
  * {@code {player}} placeholder is filled by {@link HiddenVoiceText#fill}, the same substitution the inner
  * voice lines and the title screen use.
  */
@@ -44,15 +44,29 @@ public final class MemoryScript
     /** Resource folder holding one pair of files per fragment. */
     private static final String FOLDER = "memory";
 
-    /** The character the owner writes where a word must not be readable. */
+ /** The character written where a word must not be readable. */
     public static final char GARBLE = '\u25A0';
 
     /**
-     * Prefix a script line may carry to be drawn in the <b>third voice's dark red</b> - the owner's request
+ * Prefix a script line may carry to be drawn in the <b>third voice's dark red</b> - the request
      * for the last line of the finale. The loader strips it, so the file keeps reading as prose, and the
      * colour value itself is taken from {@code HiddenVoicePool.COLOR_DARK_RED} rather than re-declared.
      */
     public static final String DARK_RED_MARKER = "[darkred]";
+
+    /**
+     * Line prefix marking a line as the <b>replacement</b> of the line directly above it, played once the
+     * void has stopped hiding part of what this script garbles (see {@link VoidUnbound}).
+     *
+     * <p>Both states live in the one file, as "the line above, in the other state", so the two states play
+     * for the <b>same number of lines</b> and every other rule of the tape - the unskippable first viewing,
+     * the order gate, the watch markers, the per-line dark red - is untouched. A replacement may be a
+     * different length from the garbled line it replaces: a word becoming readable is the whole point, and
+ * the line's width is allowed to change with it.
+     *
+     * <p>May be combined with {@link #DARK_RED_MARKER} in either order, at most once each.
+     */
+    public static final String UNBOUND_MARKER = "[unbound]";
 
     /** Marker pair the styled text helper understands; see {@link TypeHintSpec#styled(String)}. */
     private static final String OBFUSCATE_ON = "\u00A7k";
@@ -63,6 +77,12 @@ public final class MemoryScript
 
     /** Per line: whether it is drawn in the third voice's dark red (see {@link #DARK_RED_MARKER}). */
     private static List<Boolean> s_darkRed = Collections.emptyList();
+
+    /** Per line: its replacement once the void's limits are lifted, or {@code null} when it is unchanged. */
+    private static List<String> s_unbound = Collections.emptyList();
+
+    /** Per line: whether that replacement is drawn in the third voice's dark red. */
+    private static List<Boolean> s_unboundDarkRed = Collections.emptyList();
 
     private MemoryScript() {}
 
@@ -98,31 +118,103 @@ public final class MemoryScript
                     key, used.size(), other.size());
         }
 
-        // Strip the per-line colour marker once, here, so every reader below sees plain prose.
+        // Strip the per-line markers once, here, so every reader below sees plain prose. A line carrying the
+        // unbound marker is not a line of its own: it is the line above it, in the state where the void has
+        // stopped hiding part of it (see UNBOUND_MARKER).
         List<String> stripped = new ArrayList<>(used.size());
         List<Boolean> dark = new ArrayList<>(used.size());
+        List<String> unbound = new ArrayList<>(used.size());
+        List<Boolean> unboundDark = new ArrayList<>(used.size());
+        int replacements = 0;
+
         for (String raw : used)
         {
-            boolean isDark = raw.startsWith(DARK_RED_MARKER);
-            stripped.add(isDark ? raw.substring(DARK_RED_MARKER.length()) : raw);
+            String body = raw;
+            boolean isDark = false;
+            boolean isUnbound = false;
+
+            // Either order, at most once each: both prefixes describe the line, not the prose.
+            while (true)
+            {
+                if (body.startsWith(DARK_RED_MARKER))
+                {
+                    isDark = true;
+                    body = body.substring(DARK_RED_MARKER.length());
+                    continue;
+                }
+
+                if (body.startsWith(UNBOUND_MARKER))
+                {
+                    isUnbound = true;
+                    body = body.substring(UNBOUND_MARKER.length());
+                    continue;
+                }
+
+                break;
+            }
+
+            if (isUnbound)
+            {
+                if (stripped.isEmpty())
+                {
+                    SanityMod.LOGGER.warn("[MEMORY] {}: a line marked {} has no line above it to replace; "
+                            + "the line is dropped", key, UNBOUND_MARKER);
+                    continue;
+                }
+
+                unbound.set(unbound.size() - 1, body);
+                unboundDark.set(unboundDark.size() - 1, isDark);
+                replacements++;
+                continue;
+            }
+
+            stripped.add(body);
             dark.add(isDark);
+            unbound.add(null);
+            unboundDark.add(false);
         }
 
         s_lines = stripped;
         s_darkRed = dark;
-        SanityMod.LOGGER.info("[MEMORY] script of {} loaded: {} line(s), language={}", key, s_lines.size(), usedLang);
+        s_unbound = unbound;
+        s_unboundDarkRed = unboundDark;
+        SanityMod.LOGGER.info("[MEMORY] script of {} loaded: {} line(s), {} of them with a replacement for the "
+                + "lifted limits, language={}", key, s_lines.size(), replacements, usedLang);
     }
 
     /** Whether this line is drawn in the third voice's dark red. */
     public static boolean isDarkRed(int index)
     {
-        return index >= 0 && index < s_darkRed.size() && Boolean.TRUE.equals(s_darkRed.get(index));
+        if (index < 0 || index >= s_darkRed.size())
+            return false;
+
+        if (VoidUnbound.unbound() && s_unbound.get(index) != null)
+            return Boolean.TRUE.equals(s_unboundDarkRed.get(index));
+
+        return Boolean.TRUE.equals(s_darkRed.get(index));
     }
 
-    /** Number of lines loaded. */
+    /** Number of lines loaded; the same in both states, since a replacement replaces one line. */
     public static int count()
     {
         return s_lines.size();
+    }
+
+    /**
+     * The text of one line <b>in the state this save is in</b>: as written, or its replacement once the void
+     * has lifted its limits on the player's understanding.
+     */
+    private static String effectiveLine(int index)
+    {
+        if (VoidUnbound.unbound())
+        {
+            String replacement = s_unbound.get(index);
+
+            if (replacement != null)
+                return replacement;
+        }
+
+        return s_lines.get(index);
     }
 
     /**
@@ -133,13 +225,13 @@ public final class MemoryScript
      */
     public static String line(int index, String playerName)
     {
-        return HiddenVoiceText.fill(s_lines.get(index), playerName);
+        return HiddenVoiceText.fill(effectiveLine(index), playerName);
     }
 
     /**
      * One line as a component to draw, with every run of {@link #GARBLE} rendered as garbled text.
      *
-     * <p>The owner's rule is "a black square is garbled by default": the script keeps the squares exactly
+ * <p>The rule is "a black square is garbled by default": the script keeps the squares exactly
      * as written, and this is the single place that decides what they look like. The run keeps its length,
      * so the line's width never changes, and it becomes a real {@code OBFUSCATED} style span through
      * {@link TypeHintSpec#styled(String)} rather than a bare {@code §k} for the font path to interpret.

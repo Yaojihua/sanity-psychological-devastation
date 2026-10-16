@@ -238,8 +238,8 @@ public abstract class ConfigManager
             //  * the sign was inverted - the shipped `minecraft:campfire[lit=true];0.1;4;false` became
             //    -0.00005 per tick, so a lit campfire DRAINED sanity instead of restoring it;
             //  * the scale was 100x too small - 0.001 sanity per second, i.e. 3000x weaker than the pet
-            //    source (0.15 per tick) and below the HUD's 0.01 display threshold, which is why the owner
-            //    reported "the campfire still does nothing" (2026-10-02).
+ // source (0.15 per tick) and below the HUD's 0.01 display threshold, which is why the author
+ // reported "the campfire still does nothing".
             // A = 0.1 now means +0.1 sanity per second, the same rate as the garland (0.005 per tick).
             sanity /= 20.0f;
 

@@ -126,8 +126,8 @@ public class StabilizerItem extends Item
      * Adds a single grey line describing both the effect and the cooldown.
      *
      * <p>The item restores no hunger and has a cooldown, so a line is shown directly rather than through the
-     * shared "hold SHIFT for more" tooltips, which are meant for longer descriptions. The owner confirmed on
-     * 2026-10-03 that the stabilizers are meant to stay that way, including the new δ variant
+ * shared "hold SHIFT for more" tooltips, which are meant for longer descriptions. Confirmed in play-testing on
+ * that the stabilizers are meant to stay that way, including the new δ variant
      * ("稳定剂没有详情页,这就不用加").
      */
     @Override
@@ -187,8 +187,11 @@ public class StabilizerItem extends Item
                     .ifPresent(cap -> SanityProcessor.addSanity(cap, DELTA_SANITY, player));
         }
 
-        // Cooldown is keyed by Item, so all stacks and slots of that item share it; the four
-        // stabilizers are independent of each other.
-        player.getCooldowns().addCooldown(this, m_kind.cooldownTicks());
+        // The price of the shortcut comes first, then the cooldown itself. The cooldown is keyed by Item, so
+        // all stacks and slots of that item share it; the four stabilizers are independent of each other.
+        // Both steps read the thought chain, and both do nothing when the chain has no Overdose in it.
+        piloser.sanitypd.thought.Overdose.applyCost(player);
+        player.getCooldowns().addCooldown(this,
+                piloser.sanitypd.thought.Overdose.cooldownTicks(player, m_kind.cooldownTicks()));
     }
 }

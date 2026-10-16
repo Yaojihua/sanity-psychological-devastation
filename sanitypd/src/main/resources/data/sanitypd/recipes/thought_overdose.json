@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gag",
+    "bcd",
+    "gfg"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "a": {
+      "item": "sanitypd:stabilizer_a"
+    },
+    "b": {
+      "item": "sanitypd:stabilizer_b"
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    },
+    "d": {
+      "item": "sanitypd:stabilizer_c"
+    },
+    "f": {
+      "item": "minecraft:rotten_flesh"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_overdose",
+    "count": 1
+  }
+}

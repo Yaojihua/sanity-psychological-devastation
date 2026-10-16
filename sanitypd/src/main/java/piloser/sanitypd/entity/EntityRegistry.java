@@ -42,6 +42,21 @@ public class EntityRegistry
             SNEAKING_TERROR::get,
             SCREAMING_CRAWLER::get);
 
+    /**
+     * The primed shadow TNT entity.
+     *
+     * <p>Its hitbox and fire immunity are vanilla primed TNT's own (0.98 blocks wide/tall, fire immune), so
+     * a primed shadow TNT is hit and shot at exactly like a primed TNT. It is <b>not</b> an inner entity and
+     * is deliberately left out of {@link #INNER_ENTITIES}.
+     */
+    public static final RegistryObject<EntityType<PrimedShadowTnt>> PRIMED_SHADOW_TNT
+            = DEFERRED_REGISTER.register("primed_shadow_tnt",
+            () -> EntityType.Builder.<PrimedShadowTnt>of(PrimedShadowTnt::new, MobCategory.MISC)
+                    .sized(0.98f, 0.98f)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .updateInterval(10)
+                    .build("primed_shadow_tnt"));
     public static void register(IEventBus eventBus)
     {
         DEFERRED_REGISTER.register(eventBus);

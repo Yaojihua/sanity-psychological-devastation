@@ -8,6 +8,8 @@
     "sanitypd:thought_psychomotor_agitation",
     "sanitypd:thought_instrumental_aggression",
     "sanitypd:thought_stress_induced_analgesia",
-    "sanitypd:thought_irritability"
+    "sanitypd:thought_irritability",
+    "sanitypd:thought_overdose",
+    "sanitypd:thought_non_suicidal_self_injury"
   ]
 }

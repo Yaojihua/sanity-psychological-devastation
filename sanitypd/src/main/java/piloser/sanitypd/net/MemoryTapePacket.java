@@ -11,7 +11,7 @@ import piloser.sanitypd.event.MemoryTapeGuard;
  * "I am watching the memory tape", client to server.
  *
  * <h2>Why the server has to be told</h2>
- * The tape is the one moment the player cannot react, and the owner asked for it to be damage-free "like
+ * The tape is the one moment the player cannot react, and the design requires it to be damage-free "like
  * creative mode". Damage is settled on the server, and the sequence itself is client side, so there is
  * nothing for the server to derive it from. In single player the game is simply paused instead - but a
  * pause does not exist on a server, which is exactly why this packet does.

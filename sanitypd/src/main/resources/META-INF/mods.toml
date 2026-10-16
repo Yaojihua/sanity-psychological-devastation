@@ -28,7 +28,9 @@ displayName="Sanity: Psychological Devastation" #mandatory
 # A file name (in the root of the mod JAR) containing a logo for display
 logoFile= "sanitypd512.png" #optional
 # A text field displayed in the mod UI
-credits="Original art/audio: toujourspareil, Zapsplat; based on Sanity: Descent Into Madness by croissantnova (MIT); AI-assisted development: DeepSeek Harness (dsh)" #optional
+# English only, like displayName: this text is rendered inside the game, next to a one-line summary, and a
+# second language doubles its height without adding anything a player cannot get from the item names.
+credits="Original mod: croissantnova (Sanity: Descent Into Madness, MIT). Original art/audio: toujourspareil, Zapsplat. Additional audio: Freesound and other free sound libraries - the per-file authors and licences, including the two recordings that require attribution, are listed in ASSETS-CREDITS.md and named in the description. AI-assisted development: DeepSeek Harness (dsh)" #optional
 # A text field displayed in the mod UI
 authors="Yaojihua; croissantnova (original Sanity: Descent Into Madness)" #optional
 # Display Test controls the display for your mod in the server connection screen
@@ -40,15 +42,40 @@ authors="Yaojihua; croissantnova (original Sanity: Descent Into Madness)" #optio
 #displayTest="MATCH_VERSION" # MATCH_VERSION is the default if nothing is specified (#optional)
 
 # The description text for the mod (multi line!) (#mandatory)
-description='''[ALPHA TEST BUILD] Mechanics, numbers and config keys may still change. Back up your worlds.
-[ALPHA 测试版] 机制、数值与配置键仍可能变动，安装前请备份存档。
-Builds on the original Sanity mod with new mechanics, items, mobs and commands.
-在原版 Sanity 模组的基础上进行了新的机制、物品、生物、命令设计。
-Roadmap: this build is the framework. Still to come: gear that strengthens or restricts the mind
-(thinking enhancement and self-imposed restrictions), and a final boss.
-开发路线：当前版本是骨架。后续将加入思维强化与自限制类装备系统，以及最终 Boss。
-Mechanics are derived from Sanity: Descent Into Madness by croissantnova (MIT); the original
-author's attribution and license are preserved in full.'''
+description='''[ALPHA TEST BUILD] Mechanics, numbers and config keys may still change. Back up your worlds before installing.
+
+A sanity system for Minecraft 1.20.1 (Forge). Sanity sits next to your health as a second bar: psychic
+damage, the horrors that answer it and your own inner entities drain it, and whatever runs over at zero
+comes back as real damage.
+
+* Thoughts: find them and chain them. Every thought has a category (Worldview or Methodology) and one or
+  more types (Composure, Madness, Servitude, Chaos Restraint, Endurance, Hallucination), and the chain you
+  build decides the mindset you end up with. Twenty-four thoughts ship today, with Thought Containers and a
+  table that turns them into those containers.
+* Inner entities: shards, clumps and cores to fight and refine, plus the Inner Immunity that keeps your own
+  creations from turning on you.
+* Horrors: the Screaming Crawler, the Rotting Stalker and the Sneaking Terror hunt you as sanity drops.
+* Gear: mood stabilizers (α, β, γ, δ), shadow weapons charged with your own sanity, refinement up to +100,
+  Shadow Gunpowder and Shadow TNT, and the Psychic Protection enchantment. An off-hand shield takes priority
+  over charging a shadow weapon.
+* Story: nine Lost Memory Fragments. Charge one to play a recorded scene as an in-game tape, with subtitles.
+* The Non-Suicidal Self-Injury thought: an act that takes health but never the last point, and gives sanity
+  back only below a quarter of your meter.
+* Commands for reading and editing sanity, and a config file for nearly every number.
+
+Requires GeckoLib. GeckoLib 4.2 pairs with Forge 46; GeckoLib 4.8.4 pairs with Forge 47.
+
+--- Credits and licensing ---
+Original mod: Sanity: Descent Into Madness by croissantnova, released under the MIT licence. This build is
+a continuation of that project, and the original author's attribution and licence are preserved in full.
+Source code of this mod: MIT. All other assets - art, models, animations, story text and audio - are all
+rights reserved by their respective authors and may not be reused without permission.
+Original art and audio: toujourspareil, Zapsplat. Additional audio comes from Freesound and other free
+sound libraries; two recordings require attribution and are credited here: the horror sting by Taira Komori
+(CC BY 4.0) and the woman's scream by GabrielaUPF (CC BY 3.0). The complete per-file list, including the
+public-domain recordings and what was changed in each file, is in ASSETS-CREDITS.md, which ships inside this
+jar and with the release archive.
+AI-assisted development: DeepSeek Harness.'''
 # GeckoLib is a required dependency.
 # GeckoLib and Forge versions must match; a wrong pairing prevents the whole mod from loading:
 #   * GeckoLib 4.2           -> works on Forge 46 (the combination this mod is built against)
@@ -90,5 +117,14 @@ author's attribution and license are preserved in full.'''
     modId="jade"
     mandatory=false
     versionRange="[11,)"
+    ordering="AFTER"
+    side="BOTH"
+# JEI: optional soft dependency, same arrangement as Jade. The transcription table's two rules are Java
+# rather than data recipes, so JEI cannot see them on its own; when JEI is present it loads our plugin and
+# the table gets its own recipe page. Without JEI the mod is unchanged - nothing here refers to that plugin.
+[[dependencies.sanitypd]]
+    modId="jei"
+    mandatory=false
+    versionRange="[15,)"
     ordering="AFTER"
     side="BOTH"

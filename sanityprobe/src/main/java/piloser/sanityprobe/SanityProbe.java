@@ -42,10 +42,10 @@ public class SanityProbe
      * that gate compares this constant, `gradle.properties`, the jar file name and the constant actually
      * compiled into the jar, so the drift can no longer ship silently.
      */
-    public static final String VERSION = "2.18.0";
+    public static final String VERSION = "2.40.0";
 
     /** Content revision of this build; printed in the HUD header only, to identify a build in a screenshot. */
-    public static final String ROUND_TAG = "depersonalization-44";
+    public static final String ROUND_TAG = "deident-sweep";
 
     public SanityProbe()
     {
@@ -70,5 +70,25 @@ public class SanityProbe
         MinecraftForge.EVENT_BUS.register(HiddenVoiceProbe.class);
         // ThoughtChainProbe does the same (this round - the thought chain's window and its tooltips; it names
         // no sanitypd type on purpose, see its javadoc)
+        // TapeSequenceProbe does the same (the lost-memory-fragment tape: the sequence state, the handle
+        // behind its hiss bed, and whether everything that is not the tape was really silenced)
+        // Thought50Probe is server side (the two newest thoughts read off the loaded mod), and
+        // Thought50TooltipProbe is its client half (the sentences as the client would really draw them)
+        // VisionProbe does the same as the other clients (the hallucination batch: the item shape, the
+        // category tag, the multiplier's rounding, and every line of the five tooltips as really drawn)
+        // BlockProbe61 does the same (the mod's first block: its properties against the vanilla enchanting
+        // table field by field, its name and grey detail line, and blockstate / model / 13 textures /
+        // recipe / loot table / mineable tag on disk)
+        // VoidFragmentProbe does the same (the inner-void fragment: its trigger words against the phrase the
+        // transcription table's own description uses, the two scripts' 70 lines / quotes / {player} count /
+        // single dark-red last line, its tooltip, and the three word-trigger allowances)
+        // VesselFragmentProbe does the same (the vessel fragment: its words against the text the mod really
+        // ships, both scripts, the tooltip, the four allowances, and the hidden-fragment mask in both copies -
+        // the one pairing that decides whether this fragment can ever arrive)
+        // UnboundProbe does the same (the void lifting its limits on the player's understanding: the marker
+        // the files and the mod must agree on, all nine pairs parsed twice - as written and as the lifted
+        // text - the notice's own text and its one-shot marker, and the condition derived two ways)
+        // HintPoolProbe does the same (this round's eighth pool: its index, its eight lines and whether every
+        // one of their language keys resolves, plus the one-tick delay and six-second window it speaks in)
     }
 }

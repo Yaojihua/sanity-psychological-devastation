@@ -16,18 +16,52 @@ client-side behaviour — which a dedicated server cannot observe — becomes ve
 
 ## What it observes
 
-| Group | What it checks |
+One **tagged group per mechanism** (`ProbeLog` writes `[TAG] message`). The startup banner names the groups
+armed in the build you are running; this is what the tags mean.
+
+| Tag(s) | What it checks |
 |---|---|
-| walk / float | the crawler's walk-animation decision (GeckoLib formula), position and ground contact |
-| sound | every sanitypd sound played, its distance, and whether the resource actually resolves |
-| stabilizer | item cooldowns and status-effect start/end |
-| sneak HUD | the sneak sanity readout and its translation keys |
-| shield | whether an off-hand shield takes the right-click instead of the weapon charging |
-| easter egg | whether the "do not say that name" easter egg fires as intended |
-| enchant / refine | psychic-protection numbers, and the anvil shadow-refinement result |
-| splash | the title-screen splash text pool |
-| AI / chase | the crawler's target, running goals, A\* path and movement commands |
-| HUD layout | the overlay's own line count, so overlapping text is impossible |
+| `[WALK-S]` `[WALK-S VERDICT]` `[ROAR-S]` | server side: is the crawler actually walking — walk animation, ground contact, and the roar it plays |
+| `[WALK-C]` `[FLOAT-C]` | client side: walk-animation detection and floating appearance |
+| `[CHASE-27]` `[AI-27]` `[AI-27-TL]` `[AI-27-NEWPATH]` `[AI-27-CMD]` | the crawler's target, the goals it is running, the A\* path it found, and the movement commands really issued |
+| `[CRAWLER-29]` | the sanity gates that decide what a screaming crawler is allowed to do |
+| `[SOUND-C]` | sanitypd sound playback: every sound, its distance, and whether the resource resolves |
+| `[TAPE-49]` | the lost-memory-fragment tape: the sequence's state, the handle behind its hiss bed, and whether everything that is not the tape was really silenced |
+| `[TAPE-GATE-53]` | the tape's gates, and the hidden fragment's allowance |
+| `[THOUGHT]` | the thought chain, client side |
+| `[THOUGHT41-29]` | stress-induced analgesia, irritability and conversion disorder, read off the running mod |
+| `[THOUGHT50]` `[THOUGHT50-C]` | the Stockholm/Overdose batch, and the sentences their tooltips really print |
+| `[THOUGHT-ATTR]` | the attribute modifiers thoughts and mindsets put on the player |
+| `[BLOCK-61]` | the thought transcription table, checked from the client |
+| `[VISION-58]` | the hallucination batch |
+| `[DEPERSON-44]` | Depersonalization and its sanity recovery ceiling |
+| `[STAB-C]` | the mood stabilizers |
+| `[SNEAK-HUD]` | the sanity value drawn above the brain meter while sneaking |
+| `[SHIELD-26-C]` | right-click priority between a shadow weapon and an off-hand shield |
+| `[ENCH-26-C]` | the psychic protection enchantment |
+| `[REFINE-26-C]` | shadow weapon refinement |
+| `[HINT-TIER]` `[HINT-24]` | the inner-monologue tiers and their sizes |
+| `[HINTWIN-28]` | the warning-window rules of the inner monologue |
+| `[TYPEHINT-43]` | the per-type inner-voice pools |
+| `[VOICE-32]` | the extra inner-voice pool and the sound it triggers |
+| `[SELF-INJURY-75]` | the non-suicidal self-injury act's client timeline |
+| `[HINT-POOL-76]` | the self-injury hint pool |
+| `[BLOOD-78]` | the blood decal layer |
+| `[SHADOW-TNT-63]` | shadow TNT |
+| `[SCREAM-52]` | the low-sanity scream |
+| `[MACARON-60]` | the hidden fragment of the macaron's name |
+| `[SELF-59]` | the hidden fragment of the player's own name |
+| `[VOID-64]` | the hidden fragment of the inner void |
+| `[VESSEL-65]` | the hidden fragment of the vessel |
+| `[UNBOUND-66]` | the void lifting its limits on the player's understanding |
+| `[EGG-25]` `[EGG-25-C]` | the three inner-mob spawn eggs |
+| `[EGG-26-C]` `[EGG-33]` | the "do not say that name" easter egg, and its client/server split |
+| `[DEATH]` `[IMMUNE-24]` `[DEATH-FLAVOUR]` `[DEATH-KEY]` | death messages and the damage chain |
+| `[IMPACT-24]` `[MELEE-24]` `[CMD-24]` `[LANG-24]` | psychic resistance, the inner-mob damage bonus, the commands and the language keys |
+| `[P26]` | the aggregate checklist run that writes the client-side groups in one go |
+| `[SPLASH-26]` `[SPLASH-26-SAMPLE]` | the mod's title-screen splash lines |
+| `[HUD-27]` | the overlay's own layout, and any draw failure inside it |
+| `[SELFTEST]` `[SYS]` `[SYSMSG]` `[PLAYERDIE]` `[MARK]` | the probe's startup self-test, its own messages, server-side system broadcasts and the player death entry point, and the marker line written by `/sanityprobe mark` |
 
 ## Usage
 
@@ -46,8 +80,8 @@ MIT — see [LICENSE](../LICENSE).
 
 ## About the labels in this project
 
-Class names such as `Round26Probe` and labels such as `[P26]`, `[SPLASH-26-SAMPLE]` or
-`[THOUGHT41-29]` look like build tags, and that is what they are: this probe grew one
+Class names such as `Round26Probe` and labels such as `[P26]`, `[SPLASH-26-SAMPLE]`,
+`[THOUGHT41-29]` or `[TAPE-49]` look like build tags, and that is what they are: this probe grew one
 feature set at a time, and each set got its own group letter and tag.
 
 They are **kept on purpose**:

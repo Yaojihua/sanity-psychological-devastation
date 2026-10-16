@@ -14,7 +14,7 @@ import piloser.sanitypd.SanityMod;
  * specified to have none at all - so {@link #forType(ThoughtType)} is allowed to come back empty and
  * callers must handle that instead of assuming every type has a mindset.
  *
- * <p>The row holds at most seven slots (the owner's ceiling), which is why the row is bounded and
+ * <p>The row holds at most seven slots (the ceiling), which is why the row is bounded and
  * centred rather than laid out like an inventory.
  */
 public final class Mindsets
@@ -26,7 +26,7 @@ public final class Mindsets
     /**
      * The madness mindset: turns on at 5 madness thoughts.
      *
-     * <p>Its type carries the same name as the mindset, which is the owner's naming and not a mistake:
+ * <p>Its type carries the same name as the mindset, which is the naming and not a mistake:
      * "Madness" is the counting axis and "Mindset: Madness" is what five thoughts on that axis unlock.
      */
     public static final Mindset MADNESS = new Mindset("madness", ThoughtType.MADNESS, 5,

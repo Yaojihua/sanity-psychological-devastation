@@ -5,13 +5,18 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.server.ServerLifecycleHooks;
 import piloser.sanitypd.SanityMod;
+import piloser.sanitypd.mixin.MixinServerPlayerSeenCredits;
+import piloser.sanitypd.net.PacketHandler;
 
 /**
  * Server half of the memory tape's protection: a player watching the tape takes no damage, like creative
@@ -40,6 +45,12 @@ public final class MemoryTapeGuard
     /** Players currently watching the tape, with the ticks left before the protection lapses on its own. */
     private static final Map<UUID, Integer> WATCHING = new HashMap<>();
 
+    /** Last poem flag pushed to each player, so the packet is sent when it changes and not every tick. */
+    private static final Map<UUID, Boolean> POEM_SENT = new HashMap<>();
+
+    /** Counts server ticks up to one second; the poem flag cannot change faster than that. */
+    private static int s_poemPoll;
+
     private MemoryTapeGuard() {}
 
     /** Called from the packet handler: the client reporting that the tape started or ended. */
@@ -60,7 +71,17 @@ public final class MemoryTapeGuard
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event)
     {
-        if (event.phase != TickEvent.Phase.END || WATCHING.isEmpty())
+        if (event.phase != TickEvent.Phase.END)
+            return;
+
+        tickExpiry();
+        tickPoemPush();
+    }
+
+    /** Counts the protection windows down; the loop is skipped entirely when nobody is watching. */
+    private static void tickExpiry()
+    {
+        if (WATCHING.isEmpty())
             return;
 
         Iterator<Map.Entry<UUID, Integer>> it = WATCHING.entrySet().iterator();
@@ -73,6 +94,59 @@ public final class MemoryTapeGuard
                 it.remove();
             else
                 entry.setValue(left);
+        }
+    }
+
+    /** Whether vanilla's own record says this player has watched the end poem. */
+    public static boolean hasSeenPoem(ServerPlayer player)
+    {
+        // The flag is private with no getter, so it is read through the accessor mixin the third voice already
+        // uses. Never throws: a mixin that failed to apply means "not seen", which is the loud direction - the
+        // player is refused and told so, rather than a gate that silently does not exist.
+        try
+        {
+            return ((MixinServerPlayerSeenCredits) player).sanitypd$hasSeenCredits();
+        }
+        catch (Throwable t)
+        {
+            SanityMod.LOGGER.warn("[MEMORY] could not read vanilla's poem flag, treating it as not seen: {}",
+                    t.toString());
+
+            return false;
+        }
+    }
+
+    /** Forgets what was last pushed for this player, so the next join always sends the flag again. */
+    public static void forget(UUID player)
+    {
+        POEM_SENT.remove(player);
+    }
+
+    /**
+     * Pushes the poem flag to every player whose value differs from the last one sent.
+     *
+     * <p>Polled once a second rather than event driven: vanilla sets {@code seenCredits} while the credits
+     * play, and no event announces it. Without this a player who finished the credits would have to reconnect
+     * before the tapes opened for them.
+     */
+    private static void tickPoemPush()
+    {
+        if (++s_poemPoll < 20)
+            return;
+
+        s_poemPoll = 0;
+
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+
+        if (server == null)
+            return;
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers())
+        {
+            boolean seen = hasSeenPoem(player);
+
+            if (!Boolean.valueOf(seen).equals(POEM_SENT.put(player.getUUID(), seen)))
+                PacketHandler.sendPoemSeen(player, seen);
         }
     }
 
@@ -95,5 +169,20 @@ public final class MemoryTapeGuard
             return;
 
         event.setCanceled(true);
+    }
+
+    /**
+     * Releases the protection the moment the watcher dies.
+     *
+     * <p>The client closes the tape on death and says so, but the server must not depend on that message
+     * arriving: a player who lost it would respawn still carrying the tape's immunity until the expiry ran out.
+     * Dying inside the tape is a supported outcome - the void and {@code /kill} are deliberately let through -
+     * so this is the ordinary path, not an edge case.
+     */
+    @SubscribeEvent
+    public static void onLivingDeath(LivingDeathEvent event)
+    {
+        if (event.getEntity() instanceof ServerPlayer player)
+            WATCHING.remove(player.getUUID());
     }
 }

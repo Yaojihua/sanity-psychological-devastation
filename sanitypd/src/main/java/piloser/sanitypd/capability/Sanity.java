@@ -25,7 +25,7 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
     private Vec3 m_stuckMultiplier;
     /** Owning entity: players cap at 100 sanity, other mobs cap at their max health. */
     private LivingEntity m_owner;
-    /** Set while sanity still has to be filled to the owner's cap; see {@link #setOwner}. */
+ /** Set while sanity still has to be filled to the cap; see {@link #setOwner}. */
     private boolean m_pendingInit = true;
     /** Cache for expensive passive sources (entity scans and block cube scans); not persisted or synced. */
     private float m_passiveScanCache;
@@ -108,11 +108,7 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
     @Override
     public void deserializeNBT(CompoundTag tag)
     {
-        // No version key means an old save holding a 0-1 madness value; convert it to sanity points.
-        if (tag.getInt("sanity.version") < NBT_VERSION)
-            setSanity((1f - tag.getFloat("sanity.sanity")) * getMaxSanity());
-        else
-            setSanity(tag.getFloat("sanity.sanity"));
+        setSanity(readStoredSanity(tag));
         setEnderManAngerTimer(tag.getInt("sanity.ender_man_anger_timer"));
         m_lowSanityTicks = tag.getInt("sanity.low_sanity_ticks");
         m_confusionTicks = tag.getInt("sanity.confusion_ticks");
@@ -131,6 +127,41 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
 
         deserializeItemCds(tag);
         deserializeBrokenBlocksCooldowns(tag);
+    }
+
+    /**
+     * Turns the raw {@code sanity.sanity} number from a save file into sanity points.
+     *
+     * <p>The version number says <i>how old</i> a save is, never <i>what its number means</i>: v2 and v3
+     * both store points, and only v1 stored the 0..1 madness ratio. Comparing the version against the
+     * current one therefore cannot pick the branch by itself - that mistake inverted every v2 save. This
+     * method combines two discriminators, in this order:
+     *
+     * <ol>
+     *   <li><b>version 1, or no version key at all</b> — the only shapes that ever wrote a madness ratio.
+     *       The v1 scripts predate the point system and the key arrived with it, so a save without
+     *       {@code sanity.version} is a v1 save ({@code versionOrZero == 0}). Its value is then re-checked
+     *       against the 0..1 range, because the v1 default was {@code 0.0} ("fully sane"), which read as
+     *       points would mean "fully insane".</li>
+     *   <li><b>any other old version</b> (v2) — the number is already points. This is the branch whose
+     *       absence used to send players straight into full madness: {@code (1 - 99.115) * 100} clamps to
+     *       0.</li>
+     *   <li><b>{@code version >= NBT_VERSION}</b> — read as points, no translation.</li>
+     * </ol>
+     *
+     * <p>The range test is the <i>weaker</i> of the two on purpose: a v2 save holding 0.5 points would
+     * be read as 50, an error of at most one point of max sanity, while the old branch turned an
+     * ordinary v2 save into a 100-point loss.
+     */
+    private float readStoredSanity(CompoundTag tag)
+    {
+        final float stored = tag.getFloat("sanity.sanity");
+        final int versionOrZero = tag.getInt("sanity.version");
+
+        if (versionOrZero == 0 || versionOrZero == 1)
+            return stored >= 0f && stored <= 1f ? (1f - stored) * getMaxSanity() : stored;
+
+        return stored;
     }
 
     /**
@@ -198,7 +229,7 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
     }
 
     /**
-     * Deferred initialization: fills sanity to the owner's cap, so new mobs spawn fully sane.
+ * Deferred initialization: fills sanity to the cap, so new mobs spawn fully sane.
      * Does nothing while the attribute map is still unavailable and retries on the next access.
      */
     private void ensureInitialized()

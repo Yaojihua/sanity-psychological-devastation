@@ -11,10 +11,10 @@ import net.minecraft.world.item.ItemStack;
  *
  * <ol>
  *   <li><b>Category.</b> A slot only takes items of its own row, decided by
- *       {@link ThoughtTags#of(ThoughtCategory)}. A datapack that widens the tag therefore widens the row,
- *       with no code change.</li>
+ *       {@link ThoughtTags#fitsRow} - which also accepts the row-less hallucination category in <b>both</b>
+ *       rows. A datapack that widens the tag therefore widens the row, with no code change.</li>
  *   <li><b>One of each thought.</b> The same thought may not sit in the chain twice - not in the same row
- *       and not across rows - which is what the owner asked for ("同类唯一"). The check walks the whole
+ * and not across rows - which is what the design requires ("同类唯一"). The check walks the whole
  *       container rather than the row, so a thought that somehow declares the other category still cannot
  *       be duplicated.</li>
  * </ol>
@@ -37,7 +37,7 @@ public class ThoughtSlot extends Slot
     @Override
     public boolean mayPlace(ItemStack stack)
     {
-        if (stack.isEmpty() || !stack.is(ThoughtTags.of(m_category)))
+        if (stack.isEmpty() || !ThoughtTags.fitsRow(m_category, stack))
             return false;
 
         for (int i = 0; i < container.getContainerSize(); i++)

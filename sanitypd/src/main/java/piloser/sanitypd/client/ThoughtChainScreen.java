@@ -38,7 +38,7 @@ import piloser.sanitypd.thought.ThoughtChainProvider;
  *
  * <h2>The third row is drawn, not slotted</h2>
  * Mindsets are neither items nor menu slots ({@link ThoughtChainMenu}), so the row paints itself: one hole
- * per active mindset with its icon, the whole row centred - which is what the owner specified - and a
+ * per active mindset with its icon, the whole row centred - which is what the author specified - and a
  * single empty hole with a hover hint while nothing is active.
  *
  * <h2>GuiGraphics, not PoseStack</h2>
@@ -117,7 +117,7 @@ public class ThoughtChainScreen extends AbstractContainerScreen<ThoughtChainMenu
      * <p>Read from the counts, not from the items: the rule is written in terms of counts, the tooltip uses
      * counts, and counts are what the server pushes, so all three agree by construction.
      *
-     * <p>Order is the server's activation order, which is what the owner specified: the mindset that turned
+ * <p>Order is the server's activation order, which is what the author specified: the mindset that turned
      * on first holds the first slot, and the row closes its gaps when one turns off.
      */
     private List<Mindset> activeMindsets()
@@ -184,7 +184,7 @@ public class ThoughtChainScreen extends AbstractContainerScreen<ThoughtChainMenu
      * <p><b>Colour follows the same split as the thought tooltips</b>: the mindset's
      * type name carries its own type colour in bold, every value the player <b>gains</b> is the buff green,
      * and the conditions ("above 50%", "at least 5 thoughts") stay uncoloured on purpose - colouring a
-     * threshold green would read as "50% is a bonus". The owner asked for this on 2026-10-03: the tooltip
+ * threshold green would read as "50% is a bonus". The design requires this on: the tooltip
      * was one flat grey block.
      */
     private void renderMindsetTooltip(GuiGraphics guiGraphics, Mindset mindset, int mouseX, int mouseY)
@@ -202,8 +202,8 @@ public class ThoughtChainScreen extends AbstractContainerScreen<ThoughtChainMenu
         // One list entry per line, which is what makes the tooltip multi-row: the List overload gives every
         // entry its own row, while renderTooltip(Font, Component, int, int) wraps its text in a single
         // FormattedCharSequence (List.of(text.getVisualOrderText())) and never splits on a newline.
-        // Joining the lines with "\n" therefore drew all of them on top of each other - the owner saw
-        // "the composure mindset's detail text is a mess" on 2026-10-02.
+ // Joining the lines with "\n" therefore drew all of them on top of each other - the author saw
+ // "the composure mindset's detail text is a mess" on.
         guiGraphics.renderTooltip(font, lines, java.util.Optional.empty(), mouseX, mouseY);
     }
 

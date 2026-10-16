@@ -37,6 +37,17 @@ public class ThoughtChainPacket
     /** Server side: registry names of the equipped items, so the tooltip can tell "this one" from "its type". */
     public java.util.List<String> m_equippedIds = java.util.List.of();
 
+    /**
+     * Server side: registry names of the equipped thoughts that carry the empowered mark.
+     *
+     * <p>The mark itself lives in the stack's NBT, and NBT never crosses this packet - the tooltip is drawn
+     * from counts and ids wherever the item happens to be. Without this list the client knows only <i>how
+     * many</i> thoughts of an axis are worn, so a lone empowered thought looked like tier one on the item's
+     * own detail page while the mechanic was already granting it the top tier. One id per marked stack is the
+     * smallest thing that closes that gap.
+     */
+    public java.util.List<String> m_empoweredIds = java.util.List.of();
+
     /** Receiving side: the raw buffer, read once the handler runs on the client thread. */
     public FriendlyByteBuf m_buf;
 
@@ -44,11 +55,13 @@ public class ThoughtChainPacket
     {
     }
 
-    public ThoughtChainPacket(int[] counts, java.util.List<String> activeIds, java.util.List<String> equippedIds)
+    public ThoughtChainPacket(int[] counts, java.util.List<String> activeIds, java.util.List<String> equippedIds,
+            java.util.List<String> empoweredIds)
     {
         this.m_counts = counts;
         this.m_activeIds = java.util.List.copyOf(activeIds);
         this.m_equippedIds = java.util.List.copyOf(equippedIds);
+        this.m_empoweredIds = java.util.List.copyOf(empoweredIds);
     }
 
     public static void encode(ThoughtChainPacket packet, FriendlyByteBuf buf)
@@ -64,6 +77,11 @@ public class ThoughtChainPacket
         buf.writeVarInt(packet.m_equippedIds.size());
 
         for (String id : packet.m_equippedIds)
+            buf.writeUtf(id);
+
+        buf.writeVarInt(packet.m_empoweredIds.size());
+
+        for (String id : packet.m_empoweredIds)
             buf.writeUtf(id);
     }
 
@@ -89,11 +107,12 @@ public class ThoughtChainPacket
     {
         // A server player is placed in the world - and its capabilities deserialized - before the server
         // attaches the connection, so an early push would dereference a null connection and take the whole
-        // join down with it ("Loading entity NBT", 2026-10-02). Fake players never have one either.
+ // join down with it ("Loading entity NBT"). Fake players never have one either.
         if (player.connection == null)
             return;
 
         PacketHandler.CHANNEL_INSTANCE.send(PacketDistributor.PLAYER.with(() -> player),
-                new ThoughtChainPacket(chain.counts(), chain.activeMindsetIds(), chain.equippedItemIds()));
+                new ThoughtChainPacket(chain.counts(), chain.activeMindsetIds(), chain.equippedItemIds(),
+                        chain.empoweredItemIds()));
     }
 }

@@ -48,6 +48,12 @@ import java.util.Random;
  * never editable, a text repeating one of them is refused silently), and they only ever <i>mix into</i> a
  * tier's candidate set: each type keeps its own pool.
  *
+ * <p>Two more pools are separate from the madness tiers but <b>are</b> editable and listed, because the author
+ * treats them as pools rather than as a voice: {@link #INDEX_EXPIRY} (the immunity warning) and
+ * {@link #INDEX_SELF_INJURY} (what the player says to themselves right after a self-injury act). Both answer
+ * {@code /sanity hint <pool> add|remove|list|clear|show}, both live under their own JSON field, and neither
+ * ever takes part in {@code tierForMadness}: they are shown only inside their own window.
+ *
  * <p>The whole class is client-only ({@link OnlyIn}) because hints apply to the current save only,
  * so they are stored and rendered locally with no new network packet. Server code never references
  * it: {@code SanityCommand} selects a tier by string constant and dispatches through
@@ -66,12 +72,26 @@ public final class MentalHintManager
      *
      * <p>It is deliberately <b>not</b> one of the madness tiers: no madness value selects it, and it never
      * takes part in {@code tierForMadness}. It ships with real lines (the {@code hint3X} keys in the lang
-     * file), plus any the owner adds through {@code /sanity hint expiry add <text>}. {@link GuiHandler} shows a
+ * file), plus any the author adds through {@code /sanity hint expiry add <text>}. {@link GuiHandler} shows a
      * line from it only during the last {@code IMMUNITY_EXPIRY_WARNING_TICKS} of the mania-immunity
      * buff (see the expiry warning window there). Keeping it separate is what stops it from ever mixing
      * with the three madness pools.
      */
     public static final int INDEX_EXPIRY = TIER_COUNT;
+
+    /**
+     * Index of the self-injury pool: the lines that answer a non-suicidal self-injury act.
+     *
+     * <p>Separate from the three madness tiers for the same reason the expiry pool is: no madness value
+     * selects it, it never takes part in {@code tierForMadness}, and it is shown in exactly one place
+     * (the six seconds after the wound, see {@code SelfInjuryPresentation#hintWindowOpen}).
+     *
+     * <p>⚠️ Its language keys are <b>{@code hint5X}</b>, not {@code hint4X}: that prefix already belongs to
+     * the extra inner-voice pool ({@link HiddenVoicePool}), which is read-only and therefore has no index in
+     * this space. The index and the key prefix are two different namespaces; a comment here is cheaper than
+     * a rename of keys that already shipped.
+     */
+    public static final int INDEX_SELF_INJURY = TIER_COUNT + 1;
 
     public static final float T0_MADNESS = .50f;
     public static final float T1_MADNESS = .75f;
@@ -111,12 +131,25 @@ public final class MentalHintManager
      *
      * <p>The matching lang values are real lines. A blanked or removed value can never be drawn: the draw
      * path in {@link GuiHandler} skips empty text, so an emptied pool behaves as "off" instead of leaving
-     * an empty line on screen. Owners can add their own with {@code /sanity hint expiry add <text>}.
+ * an empty line on screen. Owners can add their own with {@code /sanity hint expiry add <text>}.
      */
     private static final String TIER_KEY_PREFIX_EXPIRY = "gui." + SanityMod.MODID + ".hint3";
 
     /** Number of built-in lines in the expiry warning pool, matching the keys in the lang file. */
     private static final int TIER_DEFAULT_COUNT_EXPIRY = 3;
+
+    /**
+     * Language key prefix of the self-injury pool; the index is appended, e.g. {@code hint50}.
+     *
+     * <p>See {@link #INDEX_SELF_INJURY} for why the digit is 5 while the index is 4.
+     */
+    private static final String TIER_KEY_PREFIX_SELF_INJURY = "gui." + SanityMod.MODID + ".hint5";
+
+    /** Number of built-in lines in the self-injury pool, matching the {@code hint5X} keys. */
+    private static final int TIER_DEFAULT_COUNT_SELF_INJURY = 8;
+
+    /** Lang key holding the display name of the self-injury pool, used for command feedback. */
+    private static final String TIER_NAME_KEY_SELF_INJURY = "commands.sanity.hint.tier.4";
 
     /** Lang key holding the display name of the expiry warning pool, used for command feedback. */
     private static final String TIER_NAME_KEY_EXPIRY = "commands.sanity.hint.tier.3";
@@ -151,8 +184,8 @@ public final class MentalHintManager
 
     static
     {
-        // One list per pool: the three madness tiers plus the separate expiry warning pool
-        for (int i = 0; i <= INDEX_EXPIRY; i++)
+        // One list per pool: the three madness tiers plus the two separate pools (expiry warning, self-injury)
+        for (int i = 0; i <= INDEX_SELF_INJURY; i++)
             s_custom.add(new ArrayList<>());
     }
 
@@ -170,7 +203,7 @@ public final class MentalHintManager
         if (s_defaults != null)
             return;
 
-        s_defaults = new MutableComponent[INDEX_EXPIRY + 1][];
+        s_defaults = new MutableComponent[INDEX_SELF_INJURY + 1][];
 
         for (int tier = 0; tier < TIER_COUNT; tier++)
         {
@@ -184,12 +217,19 @@ public final class MentalHintManager
         }
 
         // The expiry warning pool ships with real lines in the lang file (hint30..hint32). The draw path
-        // still skips blank text (see hasText), so an owner who blanks or removes every value leaves the
+ // still skips blank text (see hasText), so an owner who blanks or removes every value leaves the
         // pool behaving as "off" instead of drawing an empty line.
         MutableComponent[] expiryPool = new MutableComponent[TIER_DEFAULT_COUNT_EXPIRY];
         for (int i = 0; i < TIER_DEFAULT_COUNT_EXPIRY; i++)
             expiryPool[i] = Component.translatable(TIER_KEY_PREFIX_EXPIRY + i);
         s_defaults[INDEX_EXPIRY] = expiryPool;
+
+ // The self-injury pool ships with the eight lines (hint50..hint57). Same rules as the expiry
+ // pool: a blanked value means "off" instead of an empty line, and the author may add their own.
+        MutableComponent[] selfInjuryPool = new MutableComponent[TIER_DEFAULT_COUNT_SELF_INJURY];
+        for (int i = 0; i < TIER_DEFAULT_COUNT_SELF_INJURY; i++)
+            selfInjuryPool[i] = Component.translatable(TIER_KEY_PREFIX_SELF_INJURY + i);
+        s_defaults[INDEX_SELF_INJURY] = selfInjuryPool;
     }
 
     // ------------------------------------------------------------------ queries
@@ -197,18 +237,23 @@ public final class MentalHintManager
     /**
      * Whether the pool index is valid; command input can be any integer.
      *
-     * <p>Accepts the three madness tiers and {@link #INDEX_EXPIRY} (the separate expiry warning pool).
+     * <p>Accepts the three madness tiers and the two separate pools ({@link #INDEX_EXPIRY} and
+     * {@link #INDEX_SELF_INJURY}). The extra inner-voice pool has no index on purpose: it is not editable and
+     * must stay unreachable from {@code /sanity hint}.
      */
     public static boolean isValidTier(int tier)
     {
-        return tier >= 0 && tier <= INDEX_EXPIRY;
+        return tier >= 0 && tier <= INDEX_SELF_INJURY;
     }
 
-    /** Display name of a pool (mild / severe / deep / expiry) for command feedback. */
+    /** Display name of a pool (mild / severe / deep / expiry / self-injury) for command feedback. */
     public static MutableComponent tierName(int tier)
     {
         if (tier == INDEX_EXPIRY)
             return Component.translatable(TIER_NAME_KEY_EXPIRY);
+
+        if (tier == INDEX_SELF_INJURY)
+            return Component.translatable(TIER_NAME_KEY_SELF_INJURY);
 
         return Component.translatable(isValidTier(tier) ? TIER_NAME_KEYS[tier] : "commands.sanity.hint.tier.unknown");
     }
@@ -270,7 +315,7 @@ public final class MentalHintManager
         /**
          * Whether this entry carries drawable text.
          *
-         * <p>A lang value may resolve to blank (removed or emptied by the owner), so callers that must not
+ * <p>A lang value may resolve to blank (removed or emptied), so callers that must not
          * draw a blank line filter on this instead of on the pool size.
          */
         public boolean hasText()
@@ -320,7 +365,8 @@ public final class MentalHintManager
      * @param hidden whether the line came from the extra inner-voice pool ({@link HiddenVoicePool}). Such a
      *               line is drawn dark red, does not shake and triggers the cave sound.
      * @param color  {@code 0xRRGGBB} draw colour, combined with the fade alpha by {@link GuiHandler}.
-     *               White everywhere except the extra voice and the chaos-restraint type pool.
+     *               White everywhere except the extra voice. The chaos-restraint type pool was dark red until the
+ * the normal white is what this pool uses too.
      * @param typeId id of the thought type whose pool this line came from, or {@code null} for every other
      *               kind of line. Used for the {@code [HINT-TYPE]} log line, which is the only way a
      *               real-machine session can show that a type pool was actually dealt.
@@ -397,7 +443,7 @@ public final class MentalHintManager
                 ? HiddenVoicePool.eligibleLines(custom)
                 : Collections.emptyList();
         // The per-type pools are read-only and only take part in the regular draw; the command preview and
-        // the two warning windows never see them (owner's rule: they must not be reachable from /sanity hint).
+ // the two warning windows never see them (rule: they must not be reachable from /sanity hint).
         List<TypeHintPools.Line> types = regularDraw
                 ? TypeHintPools.activeLines(tier)
                 : Collections.emptyList();
@@ -412,7 +458,7 @@ public final class MentalHintManager
         // the extra voice unheard for many minutes (measured in-game: two identical lines in a row, then a
         // six minute silence while only severe lines came up). Dealing without replacement fixes both: no
         // repeat until the whole pool has been used, and the share of every line is exactly one per round.
-        // The type lines are dealt from that same bag on purpose: the owner asked for them to be mixed into
+ // The type lines are dealt from that same bag on purpose: the design requires them to be mixed into
         // the tier's pool, and the bag's source key includes them, so editing the chain rebuilds the bag.
         if (tier == TIER_SEVERE && regularDraw)
             return dealSevereDraw(pool, custom, hidden, types);
@@ -576,7 +622,7 @@ public final class MentalHintManager
          * per-type pools ({@link TypeHintPools}).
          *
          * <p>Refused without a message on purpose (see {@link HiddenVoicePool}): the point is that the same
-         * sentence never ends up in a pool twice, not to advertise that those pools exist. The owner asked
+ * sentence never ends up in a pool twice, not to advertise that those pools exist. The requirement
          * for the type pools to be unmodifiable, so "the edit is silently cancelled" is the whole answer.
          */
         public static final AddResult SILENT = new AddResult(null, true);
@@ -598,7 +644,7 @@ public final class MentalHintManager
 
         // Checked before the length and duplicate rules, and answered with silence: a text that repeats one of
         // the extra inner-voice lines, or one of the per-type lines, is not a player error worth explaining -
-        // and answering at all would advertise pools the owner wants unreachable from the command.
+ // and answering at all would advertise pools the intent is unreachable from the command.
         if (HiddenVoicePool.matchesForbiddenText(text) || TypeHintPools.matchesForbiddenText(text))
             return AddResult.SILENT;
 
@@ -734,15 +780,21 @@ public final class MentalHintManager
     }
 
     /**
-     * JSON field name of a pool: {@code tier0} / {@code tier1} / {@code tier2} for the madness tiers and
-     * {@code expiry} for the separate expiry warning pool.
+     * JSON field name of a pool: {@code tier0} / {@code tier1} / {@code tier2} for the madness tiers,
+     * {@code expiry} for the expiry warning pool and {@code self_injury} for the self-injury pool.
      *
-     * <p>The expiry pool gets its own field rather than {@code tier3} so the saved file says what it is and
-     * an older client reading the file simply ignores the unknown key.
+     * <p>The two separate pools get their own field rather than {@code tier3} / {@code tier4} so the saved file
+     * says what they are and an older client reading the file simply ignores the unknown key.
      */
     private static String storageKey(int tier)
     {
-        return tier == INDEX_EXPIRY ? "expiry" : "tier" + tier;
+        if (tier == INDEX_EXPIRY)
+            return "expiry";
+
+        if (tier == INDEX_SELF_INJURY)
+            return "self_injury";
+
+        return "tier" + tier;
     }
 
     /** Reads the local file. Exceptions must never escape: one during client init would prevent the game from starting. */
@@ -758,12 +810,18 @@ public final class MentalHintManager
         if (!Files.exists(path))
             return;
 
+        // Stored lines that mention the hidden name are dropped as they are read, so the file cannot keep a line
+        // the command path refuses to add. Such a line can only have been written by an older build: the name
+        // shown as an inner line is exactly what the easter egg forbids, and the pool is what puts lines on
+        // screen. The file itself is left alone; the next write rewrites it without them.
+        int dropped = 0;
+
         try
         {
             String json = Files.readString(path, StandardCharsets.UTF_8);
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
 
-            for (int tier = 0; tier <= INDEX_EXPIRY; tier++)
+            for (int tier = 0; tier <= INDEX_SELF_INJURY; tier++)
             {
                 String field = storageKey(tier);
                 JsonArray arr = root.has(field) ? root.getAsJsonArray(field) : null;
@@ -775,14 +833,25 @@ public final class MentalHintManager
                 for (int i = 0; i < arr.size() && list.size() < MAX_CUSTOM_PER_TIER; i++)
                 {
                     String text = arr.get(i).getAsString();
+
+                    if (text != null && piloser.sanitypd.client.HiddenNameDetector.mentionsTheName(text))
+                    {
+                        dropped++;
+                        continue;
+                    }
+
                     if (text != null && !text.isBlank() && text.length() <= MAX_HINT_LENGTH && !list.contains(text))
                         list.add(text);
                 }
             }
 
-            SanityMod.LOGGER.info("[MENTAL-HINTS] loaded local custom hints: mild {} / severe {} / deep {} / expiry {}",
+            SanityMod.LOGGER.info("[MENTAL-HINTS] loaded local custom hints: mild {} / severe {} / deep {} / expiry {} / self-injury {}",
                     s_custom.get(0).size(), s_custom.get(1).size(), s_custom.get(2).size(),
-                    s_custom.get(INDEX_EXPIRY).size());
+                    s_custom.get(INDEX_EXPIRY).size(), s_custom.get(INDEX_SELF_INJURY).size());
+
+            if (dropped > 0)
+                SanityMod.LOGGER.warn("[MENTAL-HINTS] dropped {} stored line(s) that mention the hidden name; "
+                        + "the file keeps them until the next change is written", dropped);
         }
         catch (Exception e)
         {
@@ -798,7 +867,7 @@ public final class MentalHintManager
 
         JsonObject root = new JsonObject();
 
-        for (int tier = 0; tier <= INDEX_EXPIRY; tier++)
+        for (int tier = 0; tier <= INDEX_SELF_INJURY; tier++)
         {
             JsonArray arr = new JsonArray();
             for (String text : s_custom.get(tier))

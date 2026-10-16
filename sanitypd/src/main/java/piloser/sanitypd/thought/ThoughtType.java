@@ -8,7 +8,7 @@ package piloser.sanitypd.thought;
  * counter it feeds and therefore which mindset it can help unlock.
  *
  * <h2>Why the colours are what they are</h2>
- * The owner fixed these colours by name (light blue / red / purple / dark red / orange / light grey)
+ * These colours are fixed by name (light blue / red / purple / dark red / orange / light grey)
  * and they are shown in bold in the tooltip's tag line. They also have to stay readable next to the
  * two <b>numeric</b> colours used inside the tooltip detail page - buff green {@code 0x55FF55} and
  * debuff crimson {@code 0xFF2E63}. That is why "Composure" is a light blue rather than a cyan (cyan

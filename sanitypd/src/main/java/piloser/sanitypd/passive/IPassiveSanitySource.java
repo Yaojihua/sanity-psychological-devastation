@@ -30,7 +30,7 @@ public interface IPassiveSanitySource
     /**
      * Whether this source belongs to the four behaviours "Nature Affinity" boosts.
      *
-     * <p>The owner's list is: wearing the garland, staying near a lit campfire (a {@link PassiveBlocks}
+ * <p>The list is: wearing the garland, staying near a lit campfire (a {@link PassiveBlocks}
      * category), listening to music, and being with a pet. Only those, and only their <b>positive</b>
      * contributions: a mood stabilizer, a macaron or any other pleasant source is deliberately untouched.
      *

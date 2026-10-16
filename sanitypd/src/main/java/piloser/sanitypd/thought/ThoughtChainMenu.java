@@ -79,7 +79,9 @@ public class ThoughtChainMenu extends AbstractContainerMenu
         m_chain = chain;
         chain.startOpen(playerInventory.player);
 
-        for (ThoughtCategory category : ThoughtCategory.values())
+        // Only the categories that own a row: a hallucination is a category without one and is accepted by
+        // both rows instead, so laying out "every category" would add a third row the screen does not draw.
+        for (ThoughtCategory category : ThoughtCategory.rowCategories())
         {
             int first = IThoughtChain.rowStart(category);
             int y = ROW_Y[category.ordinal()];

@@ -16,7 +16,7 @@ import java.util.Locale;
 /**
  * Group: Depersonalization and its sanity <b>recovery ceiling</b> (probe v2.18.0).
  *
- * <p>The owner's spec: a purely negative thought that stops you recovering past a fraction of the sanity
+ * <p>Specification: a purely negative thought that stops you recovering past a fraction of the sanity
  * maximum - 1 / 3 / 5 chaos-restraint thoughts in the chain mean 80% / 70% / 60%. The maximum itself is
  * untouched; only recovery is clamped, and the value above the brain gauge turns grey-red while the player
  * sits at the ceiling.
@@ -35,7 +35,7 @@ public final class DepersonalizationProbe
     /** Expected ladder, as the penalty the tooltip prints (a negative number reads as a debuff). */
     private static final float[] EXPECTED_LADDER = { -0.20f, -0.30f, -0.40f };
 
-    /** Expected ceilings the owner asked for: 80% / 70% / 60% of the maximum. */
+ /** Expected ceilings the design requires: 80% / 70% / 60% of the maximum. */
     private static final float[] EXPECTED_CEILING = { 0.80f, 0.70f, 0.60f };
 
     /** Expected HUD colour while the value sits at the ceiling (grey-red). */

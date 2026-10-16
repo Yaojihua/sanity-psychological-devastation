@@ -1,6 +1,7 @@
 package piloser.sanitypd;
 
 import com.mojang.logging.LogUtils;
+import piloser.sanitypd.block.BlockRegistry;
 import piloser.sanitypd.client.GuiHandler;
 import piloser.sanitypd.config.ConfigManager;
 import piloser.sanitypd.effect.EffectRegistry;
@@ -53,10 +54,16 @@ public class SanityMod
         MinecraftForge.EVENT_BUS.register(new EventHandler());
         MinecraftForge.EVENT_BUS.register(new InnerLoot());
         EntityRegistry.register(modEventBus);
+        // Blocks before items: the thought transcription table's item is built from its block, and the item
+        // registry event runs after the block one.
+        BlockRegistry.register(modEventBus);
         ItemRegistry.register(modEventBus);
         CreativeTabRegistry.register(modEventBus);
         SoundRegistry.register(modEventBus);
         ThoughtChainMenus.register(modEventBus);
+        // The thought transcription table's menu type; the block and its block entity type live in
+        // BlockRegistry, because a block entity type has to name the block it belongs to.
+        piloser.sanitypd.block.ThoughtTranscriptionTableMenus.register(modEventBus);
         // Damage types are not registered here: damage_type is a pure datapack registry supplied by
         // data/sanitypd/damage_type/*.json
         EffectRegistry.EFFECTS.register(modEventBus);
@@ -89,6 +96,11 @@ public class SanityMod
         // block because MenuScreens only exists on a physical client, and this method only runs there.
         MenuScreens.register(ThoughtChainMenus.THOUGHT_CHAIN.get(), ThoughtChainScreen::new);
 
+        // The transcription table's screen. Same reason as above for registering it here: MenuScreens only
+        // exists on a physical client, and this method only runs there.
+        MenuScreens.register(piloser.sanitypd.block.ThoughtTranscriptionTableMenus.TRANSCRIPTION_TABLE.get(),
+                piloser.sanitypd.client.ThoughtTranscriptionTableScreen::new);
+
         // Thought tooltips: an event handler rather than Item#appendHoverText, because item classes are loaded
         // on a dedicated server too and may not name client types (see ThoughtTooltips).
         MinecraftForge.EVENT_BUS.register(new ThoughtTooltips());
@@ -96,6 +108,10 @@ public class SanityMod
         // Reports the on-screen inner line to the server, which is what lets the Command Hallucination
         // thought grant its attack bonus there (see HintStateReporter).
         MinecraftForge.EVENT_BUS.register(piloser.sanitypd.client.HintStateReporter.class);
+
+        // Tells this save once that the void has lifted its limits on the player's understanding, and looks
+        // for the condition again on every join (see VoidUnbound).
+        MinecraftForge.EVENT_BUS.register(piloser.sanitypd.client.VoidUnbound.class);
 
         initGui();
         //EntityRenderers.register(EntityRegistry.SHADE_CHOMPER.get(), RendererShadeChomper::new);

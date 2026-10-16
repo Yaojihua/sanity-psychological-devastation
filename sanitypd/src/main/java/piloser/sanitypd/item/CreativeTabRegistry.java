@@ -47,6 +47,20 @@ public final class CreativeTabRegistry
                 output.accept(ItemRegistry.INNER_SHARD.get());
                 output.accept(ItemRegistry.INNER_CLUMP.get());
                 output.accept(ItemRegistry.INNER_CORE.get());
+                // The thought container is the transcription table's crafting ingredient, so it sits with the
+                // inner materials that the table itself is built from. Like the table, its constant is
+                // declared late in ItemRegistry; the tab position is independent of that declaration order.
+                output.accept(ItemRegistry.THOUGHT_CONTAINER.get());
+                // The container's four typed variants sit with it: same icon, plus the enchantment glint.
+                output.accept(ItemRegistry.THOUGHT_CONTAINER_COMPOSURE.get());
+                output.accept(ItemRegistry.THOUGHT_CONTAINER_MADNESS.get());
+                output.accept(ItemRegistry.THOUGHT_CONTAINER_SERVITUDE.get());
+                output.accept(ItemRegistry.THOUGHT_CONTAINER_ENDURANCE.get());
+                // The thought transcription table is the mod's only block, and it is built out of these inner
+                // materials, so it sits with them. Its item constant is declared at the very end of
+                // ItemRegistry to keep the earlier registry ids stable - the tab position is independent of
+                // that, and the item-hook gate checks this listing exists.
+                output.accept(ItemRegistry.THOUGHT_TRANSCRIPTION_TABLE.get());
                 output.accept(ItemRegistry.SHADOW_SWORD.get());
                 output.accept(ItemRegistry.SHADOW_AXE.get());
                 // Mind stabilizer trio
@@ -69,7 +83,7 @@ public final class CreativeTabRegistry
                 output.accept(ItemRegistry.THOUGHT_DUPLICITY.get());
                 // Madness batch. ⚠️ A thought that is not listed here is invisible in the creative
                 // tab AND in JEI, because JEI builds its item list from the tab contents (this mod ships no
-                // JEI plugin). An earlier build shipped without these five lines, and the owner reported exactly that
+ // JEI plugin). An earlier build shipped without these five lines, and play-testing reported exactly that
                 // ("I cannot see a single new thought"). Registering an item is not the same as listing it.
                 // Order follows the composure group above: two worldviews, then three methodologies.
                 output.accept(ItemRegistry.THOUGHT_IDENTIFICATION_WITH_THE_AGGRESSOR.get());
@@ -89,6 +103,25 @@ public final class CreativeTabRegistry
                 // The first chaos-restraint thought: appended here as well as in ItemRegistry, so its
                 // registry ids do not shift for anyone else.
                 output.accept(ItemRegistry.THOUGHT_DEPERSONALIZATION.get());
+                // Stockholm syndrome (worldview/servitude + endurance) and overdose
+                // (methodology/endurance). Both are registered at the end of ItemRegistry, and listed here
+                // because an unlisted item is invisible in the tab and in JEI (see the warning above).
+                output.accept(ItemRegistry.THOUGHT_STOCKHOLM_SYNDROME.get());
+                output.accept(ItemRegistry.THOUGHT_OVERDOSE.get());
+                // The hallucination batch (five, all row-less and untiered). Registered at the end of
+                // ItemRegistry to keep every earlier id stable, and listed here because an unlisted item is
+                // invisible in the tab AND in JEI (see the warning above). The four creature visions come
+                // first and the finale last, which is also the order its recipe reads.
+                output.accept(ItemRegistry.THOUGHT_HALLUCINATION_HORSE.get());
+                output.accept(ItemRegistry.THOUGHT_HALLUCINATION_HUMAN.get());
+                output.accept(ItemRegistry.THOUGHT_HALLUCINATION_SHEEP.get());
+                output.accept(ItemRegistry.THOUGHT_HALLUCINATION_FISH.get());
+                output.accept(ItemRegistry.THOUGHT_HALLUCINATION_CONVERGENT_EVOLUTION.get());
+                // Non-suicidal self-injury: the second chaos-restraint thought, and the first one on the
+                // methodology row. Registered at the end of ItemRegistry to keep every earlier id stable, and
+                // listed here because an unlisted item is invisible in the tab AND in JEI (see the warning
+                // above).
+                output.accept(ItemRegistry.THOUGHT_NON_SUICIDAL_SELF_INJURY.get());
                 // Lost memory fragment (story item, part 1): registered at the end of ItemRegistry to keep
                 // the ids stable, and listed here because an unlisted item is invisible in the tab AND in
                 // JEI (see the warning above).
@@ -103,6 +136,10 @@ public final class CreativeTabRegistry
                 output.accept(ItemRegistry.ROTTING_STALKER_SPAWN_EGG.get());
                 output.accept(ItemRegistry.SNEAKING_TERROR_SPAWN_EGG.get());
                 output.accept(ItemRegistry.SCREAMING_CRAWLER_SPAWN_EGG.get());
+                // Shadow gunpowder sits next to its only source's spawn egg, and Shadow TNT next to the
+                // gunpowder it is made of - the two are crafted from each other and read as one family.
+                output.accept(ItemRegistry.SHADOW_GUNPOWDER.get());
+                output.accept(ItemRegistry.SHADOW_TNT.get());
                 // Highest level obtainable in survival
                 output.accept(book(SanityEnchantments.PSYCHIC_DEPRIVATION, PsychicDeprivationEnchantment.NATURAL_MAX_LEVEL));
                 // Anvil limit, for playing with a maxed-out book right away

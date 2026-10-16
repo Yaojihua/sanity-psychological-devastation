@@ -50,7 +50,9 @@ public final class SanityArgumentTypes
         MILD(0),
         SEVERE(1),
         DEEP(2),
-        EXPIRY(3);
+        EXPIRY(3),
+        /** The self-injury pool: what the player says after the act, shown for its own six-second window. */
+        SELF_INJURY(4);
 
         private final int m_index;
 
@@ -82,7 +84,7 @@ public final class SanityArgumentTypes
             return MILD;
         }
 
-        /** Translation key naming this tier (mild / severe / deep / expiry). */
+        /** Translation key naming this tier (mild / severe / deep / expiry / self-injury). */
         public String translationKey()
         {
             return "commands.sanity.hint.tier." + m_index;
@@ -90,7 +92,7 @@ public final class SanityArgumentTypes
 
         public static Collection<String> literals()
         {
-            return Arrays.asList("mild", "severe", "deep", "expiry");
+            return Arrays.asList("mild", "severe", "deep", "expiry", "self_injury");
         }
     }
 

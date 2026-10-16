@@ -102,21 +102,37 @@ public final class HiddenVoiceProbe
         reportWidths(mc);
 
         boolean unlocked = unlocked();
+        boolean anchored = anchored();
         float cooldown = cooldownTicks();
-        String state = (unlocked ? "unlocked" : "locked") + "|" + (cooldown <= 0f ? "ready" : "cooling");
+        String state = (unlocked ? "unlocked" : "locked") + "|" + (anchored ? "anchored" : "speaking") + "|"
+                + (cooldown <= 0f ? "ready" : "cooling");
 
         if (!state.equals(s_lastState))
         {
             s_lastState = state;
+
+            int eligible = eligibleNow();
+
+            // The anchoring rule: once the four story fragments have been read through, this voice must not be
+            // able to speak again - and while the pool is locked it must not either. "Unlocked and not yet
+            // anchored" is the only state in which lines may be waiting.
+            boolean silent = !unlocked || anchored;
+            boolean rule = silent ? eligible == 0 : eligible > 0;
+
             ProbeLog.log("VOICE-32", String.format(Locale.ROOT,
-                    "state=%s | soundCooldown=%s | save=%s",
-                    unlocked ? "unlocked" : "locked",
+                    "state=%s | anchored=%s | eligible now=%d | soundCooldown=%s | save=%s | %s",
+                    unlocked ? "unlocked" : "locked", anchored, eligible,
                     cooldown <= 0f ? "ready" : ProbeLog.fmt(cooldown / 20f) + "s",
-                    saveFile()));
+                    saveFile(),
+                    eligible < 0 ? "n/a (sanitypd absent)"
+                            : rule ? "PASS"
+                            : "CHECK (the voice can still speak while it must be silent, or is silent before "
+                                    + "the story has been read through)"));
         }
 
-        s_hud = String.format(Locale.ROOT, "%s cd=%s",
+        s_hud = String.format(Locale.ROOT, "%s%s cd=%s",
                 unlocked ? "unlocked" : "locked",
+                anchored ? "/anchored" : "",
                 cooldown <= 0f ? "-" : Math.round(cooldown / 20f) + "s");
     }
 
@@ -272,6 +288,44 @@ public final class HiddenVoiceProbe
         catch (Throwable t)
         {
             return 0f;
+        }
+    }
+
+    /** Whether the mod says this save's story has anchored the voice, via reflection. */
+    private static boolean anchored()
+    {
+        try
+        {
+            Class<?> pool = Class.forName("piloser.sanitypd.client.HiddenVoicePool");
+            return (Boolean) pool.getMethod("anchored").invoke(null);
+        }
+        catch (Throwable t)
+        {
+            return false;
+        }
+    }
+
+    /**
+     * How many of the pool's lines would join the severe draw right now, via reflection.
+     *
+     * <p>Asked through the mod's own eligibility rule rather than recomputed here: the question the probe
+     * needs answered is exactly "would it speak", and a second copy of the rule could answer differently.
+     *
+     * @return the count, or {@code -1} when the mod is absent
+     */
+    private static int eligibleNow()
+    {
+        try
+        {
+            Class<?> pool = Class.forName("piloser.sanitypd.client.HiddenVoicePool");
+            Object lines = pool.getMethod("eligibleLines", java.util.List.class)
+                    .invoke(null, java.util.List.of());
+
+            return ((java.util.List<?>) lines).size();
+        }
+        catch (Throwable t)
+        {
+            return -1;
         }
     }
 

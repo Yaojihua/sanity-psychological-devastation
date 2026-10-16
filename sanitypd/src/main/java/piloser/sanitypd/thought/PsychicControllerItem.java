@@ -41,7 +41,7 @@ public class PsychicControllerItem extends Item
 
         if (!level.isClientSide)
         {
-            // The account name, not the display name: the owner asked for the same reading as the hidden
+ // The account name, not the display name: the design requires the same reading as the hidden
             // splash-text easter egg, which uses the account name.
             player.openMenu(new SimpleMenuProvider(
                     (id, inventory, opener) -> ThoughtChainMenu.forPlayer(id, inventory, opener),

@@ -18,8 +18,11 @@ import net.minecraft.world.level.Level;
  *   <li><b>psychic</b>: deals no damage on its own. A hit drains an equal amount of sanity instead;
  *       once the target's sanity is exhausted, the excess becomes an equal amount of true damage.
  *       On inner entities it always converts to 2.5x true damage.</li>
- *   <li><b>true_damage</b>: ignores armor, enchantment protection, resistance, absorption and
- *       shields (the datapack adds it to the vanilla {@code bypasses_*} damage type tags).</li>
+ *   <li><b>true_damage</b>: ignores armor, enchantment protection, resistance and shields (the datapack
+ *       adds it to the vanilla {@code bypasses_*} damage type tags). ⚠️ It does <b>not</b> ignore absorption:
+ *       1.20.1 has no {@code bypasses_absorption} tag and no such constant in {@code DamageTypeTags}, so a
+ *       golden apple's hearts soak a true hit like any other. {@link #dealSelfInjury} is the one caller that
+ *       lifts the absorption for the length of its own call, because its spec says so.</li>
  *   <li><b>mania</b>: true damage used for the per-second health drain in the mania state; same
  *       rules as true damage, only the death message differs.</li>
  *   <li><b>psychic_overflow</b>: true damage for the overflow part of psychic damage.</li>
@@ -44,7 +47,8 @@ public final class SanityDamageTypes
     /** Registry key for psychic damage (also used in {@code DamageSource#is} checks and the {@code death.attack.psychic} message). */
     public static final ResourceKey<DamageType> PSYCHIC = key("psychic");
     /**
-     * Registry key for <b>sourceless</b> true damage (ignores armor/enchantments/resistance/absorption/shields).
+     * Registry key for <b>sourceless</b> true damage (ignores armor/enchantments/resistance/shields; see the
+     * class note about absorption).
      *
      * <p>This type means "true damage with no source" only. Both of its lang entries carry the same
      * sourceless wording, which also covers the "no entity but a kill credit" case.
@@ -88,6 +92,49 @@ public final class SanityDamageTypes
      * message is consistent regardless of whether the sanity drain or the overflow stage killed the target.
      */
     public static final ResourceKey<DamageType> CRAWLER_EXPLOSION = key("crawler_explosion");
+
+    /**
+ * Psychic damage type used only by a <b>shadow TNT</b> blast with no known owner.
+     *
+     * <p>Message id: {@code death.attack.shadow_tnt}. Like {@link #CRAWLER_EXPLOSION} it is used for the
+     * <b>overflow segment</b> of a psychic hit, so sanity has already been drained and only the death
+     * message differs.
+     *
+     * <p>It deliberately carries <b>no causing entity</b>: vanilla's
+     * {@code DamageSource#getLocalizedDeathMessage} routes any source that has one to the {@code .player}
+     * entry and renders that entity's display name for {@code %2$s}, and the three messages this mod needs
+     * ("blown up by Shadow TNT" / "by the one <i>you</i> set off" / "by the one <i>someone else</i> set
+     * off") cannot be distinguished that way - the self-ignited case would print the victim's own name
+     * where the sentence wants "yourself". So each case has its own type and its own base entry.
+     */
+    public static final ResourceKey<DamageType> SHADOW_TNT = key("shadow_tnt");
+
+    /** Psychic damage type used by a shadow TNT blast the <b>victim themselves</b> set off. */
+    public static final ResourceKey<DamageType> SHADOW_TNT_SELF = key("shadow_tnt_self");
+
+    /**
+     * Psychic damage type used by a shadow TNT blast <b>someone else</b> set off.
+     */
+    public static final ResourceKey<DamageType> SHADOW_TNT_BY_OWNER = key("shadow_tnt_by_owner");
+
+    /**
+     * The self-injury damage of the non-suicidal self-injury thought: the victim is its own source.
+     *
+     * <p>It is a type of its own rather than a reuse of {@link #MANIA} or {@link #TRUE_DAMAGE} because the
+     * sentence that has to be printed is neither of theirs ("&lt;name&gt; killed themselves" belongs to this
+     * act alone), and because the act's two numeric rules are its own (see {@link #dealSelfInjury}).
+     *
+     * <p>It joins the same six vanilla bypass tags as the other true-damage-style types, so armour,
+     * enchantment protection, resistance, shields and the 20-tick invulnerability window cannot reduce or
+     * swallow it (the tag gate asserts the cooldown one).
+     */
+    public static final ResourceKey<DamageType> SELF_INJURY = key("self_injury");
+
+    /** Whether this damage type is one of the three shadow TNT death-message types. */
+    public static boolean isShadowTnt(DamageSource source)
+    {
+        return source != null && (source.is(SHADOW_TNT) || source.is(SHADOW_TNT_SELF) || source.is(SHADOW_TNT_BY_OWNER));
+    }
 
     private SanityDamageTypes() {}
 
@@ -211,6 +258,85 @@ public final class SanityDamageTypes
         return source != null && source.is(CRAWLER_EXPLOSION);
     }
 
+    /** Whether this damage source is the self-injury inflicted by the self-injury thought. */
+    public static boolean isSelfInjury(DamageSource source)
+    {
+        return source != null && source.is(SELF_INJURY);
+    }
+
+    /**
+     * Builds the self-injury damage source: the victim is <b>its own</b> source, both directly and as the
+     * causing entity.
+     *
+ * <p>That is what the design requires ("the damage's source is yourself"), and it is also what the death
+     * message is written against: the base and the {@code .player} entries of {@code death.attack.self_injury}
+     * print the same sentence, so whichever branch vanilla picks reads correctly.
+     */
+    public static DamageSource selfInjury(Level level, Entity self)
+    {
+        return source(level, SELF_INJURY, self, self);
+    }
+
+    /**
+     * Applies the self-injury damage: <b>never lethal, never mitigated, never absorbed</b>.
+     *
+ * <p>Three rules, all of them the specification for this act, and all of them enforced here so no call site
+     * can forget one:
+     * <ul>
+     *   <li><b>Never lethal</b> - the amount is clamped so at least one health point remains. A wound that
+     *       kills would turn a mechanic the player is supposed to survive into a death sentence at low health,
+     *       and the clamp is what makes "该伤害不会致死" true.</li>
+     *   <li><b>Never mitigated</b> - the type is in the six vanilla bypass tags, so armour, enchantments,
+     *       resistance and shields change nothing.</li>
+     *   <li><b>Never absorbed</b> - absorption hearts are <b>not</b> tag-controllable in 1.20.1: there is no
+     *       {@code bypasses_absorption} tag in the vanilla data (checked against the shipped jar), so a golden
+     *       apple would silently eat the whole wound. The absorption amount is therefore lifted for the
+     *       duration of the {@code hurt} call and put back afterwards, which keeps every event and every
+     *       listener intact while making the health loss exactly the amount asked for.</li>
+     * </ul>
+     *
+     * @return the health actually lost (0 when the clamp left nothing to take, e.g. at one health point)
+     */
+    public static float dealSelfInjury(LivingEntity target, float amount)
+    {
+        if (target == null || amount <= 0.0f)
+            return 0.0f;
+
+        float loss = Math.min(amount, target.getHealth() - 1.0f);
+
+        if (loss <= 0.0f)
+            return 0.0f;
+
+        float absorption = target.getAbsorptionAmount();
+
+        if (absorption > 0.0f)
+            target.setAbsorptionAmount(0.0f);
+
+        // No knockback: a wound a player inflicts on themselves must not shove them. hurt() marks the entity
+        // so its velocity is taken from the server (hurtMarked) and can add a push of its own, so both are
+        // captured first and put back afterwards. Measured live: the player was being pushed away from their own
+        // knife, which also made the act's own five seconds hard to watch.
+        double keptX = target.getDeltaMovement().x;
+        double keptY = target.getDeltaMovement().y;
+        double keptZ = target.getDeltaMovement().z;
+        boolean keptMarked = target.hurtMarked;
+
+        try
+        {
+            target.hurt(selfInjury(target.level(), target), loss);
+        }
+        finally
+        {
+            target.setDeltaMovement(keptX, keptY, keptZ);
+            target.hurtMarked = keptMarked;
+
+            if (absorption > 0.0f && target.isAlive())
+                target.setAbsorptionAmount(absorption);
+        }
+
+        return loss;
+    }
+
     /**
      * Rebuilds a damage source with the same attacker but a different damage type.
      *
@@ -256,6 +382,63 @@ public final class SanityDamageTypes
         return source(level, PSYCHIC_OVERFLOW, attacker, attacker);
     }
 
+    /**
+     * Applies the overflow segment with an <b>explicit</b> death-message type, without any attacker.
+     *
+     * <p>Only the shadow TNT blast uses this. That hit must not carry a causing entity (see
+     * {@link #SHADOW_TNT}), so going through {@link #dealPsychicOverflow} - which attaches the attacker -
+     * would send vanilla down the {@code .player} death-message branch and print the wrong sentence. The
+     * numbers are those of the psychic overflow: true damage that ignores armour, resistance, enchantments,
+     * shields and the invulnerability window, because this segment is applied after sanity has already been
+     * drained.
+     */
+    public static float dealOverflowWithType(LivingEntity target, float amount, ResourceKey<DamageType> messageType)
+    {
+        return dealOverflowWithType(target, amount, null, messageType);
+    }
+
+    /**
+     * The same, with the attacker carried through.
+     *
+     * <p>⚠️ <b>The attacker must not be dropped.</b> An earlier version passed {@code null} for both entities
+ * so that vanilla would render the base death-message entry - and on the client that hit silently
+     * did nothing at all: the explosion drained sanity, the overflow was queued with the right message type,
+     * and the player's health simply did not move. The screaming crawler's overflow (same queue, same tick,
+     * but a real attacker in the source) hurt normally in the very same session, which is what pinned it down.
+     *
+     * <p>The message type still decides the wording: it is our own type rather than the generic psychic
+     * overflow, and {@code SanityCombat#overflowTypeFor} is bypassed entirely for this path.
+     */
+    public static float dealOverflowWithType(LivingEntity target, float amount, Entity attacker, ResourceKey<DamageType> messageType)
+    {
+        if (target == null || amount <= 0.0f || messageType == null)
+            return 0.0f;
+
+        net.minecraft.world.damagesource.DamageSource src = source(target.level(), messageType, attacker, attacker);
+
+        // Which exit of LivingEntity#hurt refuses this hit? Three of them return false, and their fixes are
+        // completely different, so each is evaluated separately instead of guessing:
+        //   * the Forge attack hook (a LivingAttackEvent listener cancelled it),
+        //   * isInvulnerableTo (the entity is immune to this source),
+        //   * isDeadOrDying.
+        boolean hookAllows = net.minecraftforge.common.ForgeHooks.onLivingAttack(target, src, amount);
+        boolean invulnerableTo = target.isInvulnerableTo(src);
+        boolean dead = target.isDeadOrDying();
+        int timeBefore = target.invulnerableTime;
+
+        boolean landed = target.hurt(src, amount);
+
+        piloser.sanitypd.SanityMod.LOGGER.info(
+                "[OVF-TYPE] msgId={} amount={} landed={} | hookAllows={} invulnerableTo={} deadOrDying={} "
+                        + "invulnerableTime={} healthBefore={} healthAfter={} alive={} bypassCooldownTag={} bypassInvulnTag={}",
+                src.type().msgId(), amount, landed, hookAllows, invulnerableTo, dead,
+                timeBefore, target.getHealth() + (landed ? amount : 0.0f), target.getHealth(), target.isAlive(),
+                src.is(net.minecraft.tags.DamageTypeTags.BYPASSES_COOLDOWN),
+                src.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY));
+
+        return amount;
+    }
+
     /** Builds only the "screaming crawler explosion" damage source (deals no damage; for self-checks and debugging). */
     public static DamageSource dealCrawlerExplosionSource(LivingEntity target, Entity attacker)
     {
@@ -292,6 +475,42 @@ public final class SanityDamageTypes
         if (target == null || amount <= 0.0f)
             return 0.0f;
         target.hurt(psychic(target.level(), attacker), amount);
+        return amount;
+    }
+
+    /**
+     * Psychic damage whose <b>death message</b> is forced to a specific type.
+     *
+     * <p>Used by the shadow TNT blast, which has to pick one of three sentences from the owner of the primed
+     * entity (none / the victim / somebody else) - a choice the attacker entity alone cannot express, since
+     * the damage source has no causing entity by design.
+     *
+     * <p>The override is pushed on a thread-local stack for the duration of the {@code hurt} call, which is
+     * the only window in which {@code SanityCombat} can inspect it: the sanity drain and the queueing of the
+     * overflow segment both happen inside that call. The stack is popped in a {@code finally}, and the pop is
+     * guarded by the push result, so an exception thrown while applying damage cannot leave the override
+     * behind for the next hit.
+     */
+    public static float dealPsychic(LivingEntity target, float amount, Entity attacker, ResourceKey<DamageType> messageType)
+    {
+        if (target == null || amount <= 0.0f)
+            return 0.0f;
+
+        if (messageType == null)
+            return dealPsychic(target, amount, attacker);
+
+        boolean pushed = piloser.sanitypd.combat.SanityCombat.pushOverflowMessageType(messageType);
+
+        try
+        {
+            target.hurt(psychic(target.level(), attacker), amount);
+        }
+        finally
+        {
+            if (pushed)
+                piloser.sanitypd.combat.SanityCombat.popOverflowMessageType();
+        }
+
         return amount;
     }
 

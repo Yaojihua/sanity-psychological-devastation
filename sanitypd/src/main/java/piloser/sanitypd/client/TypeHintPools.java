@@ -84,8 +84,17 @@ public final class TypeHintPools
             if (pool.tier() != tier || heldCount(pool.type()) <= 0)
                 continue;
 
-            for (MutableComponent line : s_lines[p])
+            for (int i = 0; i < s_lines[p].length; i++)
             {
+                MutableComponent line = s_lines[p][i];
+
+                // The one conditional line: the chaos-restraint half-memory leaves the pool once the story is
+                // anchored (the four fragments are read through), because by then the player has remembered and
+                // the line has nothing left to say. Asked here rather than stored, so it cannot disagree with
+                // the condition the third voice already ends on.
+                if (i == pool.dropsWhenAnchored() && HiddenVoicePool.anchored())
+                    continue;
+
                 String text = MentalHintManager.resolveHintText(line);
 
                 if (text != null && !text.isBlank())

@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gig",
+    "cec",
+    "gig"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:gold_ingot"
+    },
+    "i": {
+      "item": "sanitypd:inner_core"
+    },
+    "c": {
+      "item": "sanitypd:inner_clump"
+    },
+    "e": {
+      "item": "minecraft:enchanting_table"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_transcription_table",
+    "count": 1
+  }
+}

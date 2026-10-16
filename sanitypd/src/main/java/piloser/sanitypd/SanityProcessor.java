@@ -43,6 +43,7 @@ import piloser.sanitypd.thought.Mindsets;
 import piloser.sanitypd.thought.MindsetAttributes;
 import piloser.sanitypd.thought.ThoughtEffects;
 import piloser.sanitypd.thought.MadnessCombat;
+import piloser.sanitypd.thought.SelfInjury;
 import piloser.sanitypd.thought.HintState;
 import piloser.sanitypd.combat.SanityCombat;
 import piloser.sanitypd.effect.EffectRegistry;
@@ -279,6 +280,11 @@ public final class SanityProcessor
 
     public static void tickPlayer(final ServerPlayer player)
     {
+        // The self-injury clock is advanced before the early exits below on purpose: a player who switches to
+        // creative while an act is announced has that announcement withdrawn here instead of frozen and fired
+        // later (see thought.SelfInjury).
+        SelfInjury.tick(player);
+
         if (player == null || player.isCreative() || player.isSpectator())
             return;
 
@@ -364,13 +370,13 @@ public final class SanityProcessor
      *
      * <h2>Why the resistance is added rather than compared</h2>
      * The madness bonus and the composure bonus share the one field the capability keeps for it, and the
-     * owner's rule is that unstipulated effects stack - so an active madness mindset adds its 20% on top of
+ * owner's rule is that unstipulated effects stack - so an active madness mindset adds its 20% on top of
      * a composure mindset's 15%. (In practice the two need ten thoughts of two types at once, so this is
      * mostly a guard against a future bug; adding is also the answer that cannot silently swallow one of
      * them.)
      *
      * <h2>Why the drain is not routed through the normal multiplier</h2>
-     * The owner's wording is "equal to the darkness rate", and the darkness rate is whatever
+ * The wording is "equal to the darkness rate", and the darkness rate is whatever
      * {@code sanity.passive.darkness} is set to. Reading that one value here - rather than hard-coding a
      * number - is what keeps the two equal when a player edits the config. It is applied with the same
      * negative multiplier every other sanity source uses, so standing in the dark with the mindset active
@@ -418,7 +424,7 @@ public final class SanityProcessor
 
         // Irritability: it raises the attack bonus the mania *effect* grants, so it pays out only while that
         // effect is on the player. Gating on the effect (rather than on the madness mindset or the mania
-        // window) is the owner's wording: "the mania status effect's attack bonus is raised".
+ // window) is the wording: "the mania status effect's attack bonus is raised".
         float irritability = player.hasEffect(piloser.sanitypd.effect.EffectRegistry.MANIA.get())
                 ? ThoughtEffects.tierValue(player, ItemRegistry.THOUGHT_IRRITABILITY.get())
                 : 0f;
@@ -558,7 +564,7 @@ public final class SanityProcessor
      *
      * <p>Public so a self-check can assert the number without going through {@code handlePlayerSlept}, whose
      * loop only visits players in the level's player list - a fake player is never in it, and the check would
-     * read a flat zero for reasons that have nothing to do with the thought (measured 2026-10-03).
+ * read a flat zero for reasons that have nothing to do with the thought (measured).
      *
      * <p>Sleep Debt cuts it by its penalty. The reduction multiplies the amount rather than adding a second
      * negative source, so the cooldown and the "was that a real sleep" bookkeeping are untouched - only the
@@ -615,7 +621,7 @@ public final class SanityProcessor
 
     public static void handlePlayerPetDeath(ServerPlayer player, TamableAnimal pet)
     {
-        // The player passed by this event already IS the pet owner; an extra
+ // The player passed by this event already IS the pet owner; an extra
         // pet.isOwnedBy(player) check would prevent this penalty from ever firing.
         if (player == null || player.isCreative() || player.isSpectator())
             return;

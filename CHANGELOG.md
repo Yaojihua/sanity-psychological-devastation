@@ -5,8 +5,8 @@ All notable changes to **Sanity: Psychological Devastation** (`sanitypd`) are li
 This is an **alpha** build: mechanics, numbers, config keys and commands may still change between
 versions, and entries marked *alpha* may change without notice.
 
-Version format: `<minecraft>-forge<forge>-<mod>` — the current artifact is `sanitypd-mc1.20-1.8.0.jar`
-(Minecraft 1.20.1 / Forge 46 / mod 1.8.0). There is no `-alpha` suffix in the file name yet: the alpha
+Version format: `sanitypd-mc<minecraft>-<mod>.jar` — the current artifact is `sanitypd-mc1.20-1.21.7.jar`
+(Minecraft 1.20.1 / Forge 46 / mod 1.21.7). There is no `-alpha` suffix in the file name yet: the alpha
 status is stated in the mod description and in this changelog, not in the version string.
 
 > **How to read this file:** every entry is measured against the **previous public release**, never
@@ -16,7 +16,82 @@ status is stated in the mod description and in this changelog, not in the versio
 
 ---
 
-## 1.8.0 — current
+## 1.21.7
+
+Back up your worlds before installing, as always with an alpha build. Everything below is what a player of
+**1.8.0**, the previous public build, will notice.
+
+This is the **second part** of the two pieces of work 1.8.0 announced: the rest of the thought chain and the
+rest of the memory fragments.
+
+### New: the rest of the thought chain
+
+* **Hallucination, one of the six counting types, has thoughts at last.** Five belong to it — *Fish*,
+  *Horse*, *Human*, *Sheep* and *Convergent Evolution* — and they count only among themselves, like the other
+  five types.
+* **Three more thoughts for the types that already existed**: **Non-Suicidal Self-Injury** (Chaos Restraint),
+  **Overdose** and **Stockholm Syndrome**. The chain now counts **twenty-four thoughts** in all.
+* **Thought Containers**, one for each of the four types the chain already used (Composure, Madness,
+  Servitude, Endurance): a thought's carrier form, and what the new table below asks for.
+* Tooltips work as before — the current effect on the tooltip, the full tier table with SHIFT held.
+
+### New: the Non-Suicidal Self-Injury mechanic
+
+* **A wound that cannot kill you.** It takes real health, but never the last point: at one health point it
+  simply stops. It does not move you either — no knockback.
+* **It returns sanity only where that belongs.** Below a quarter of your meter the act gives sanity back; at
+  or above it, the act **takes sanity away** instead. Relief for one state, not a free reset for every state.
+* **Blood on the ground.** Each act leaves a small pool on the block under you — once a second for five
+  seconds, three hand-drawn variants, and each pool lasts half a minute, fading out over its last five
+  seconds. Pools appear **only on a solid surface**: in water, in lava, in mid-air or over a hole, nothing is
+  left behind.
+* **You see and hear it happen**: a flash of the blood-tendril overlay, a heavier blur at the cut, a double
+  image for the seconds after, the world's other sounds dropping away, and three sounds of its own — the cut,
+  a rising tinnitus and the drip.
+* **The voice says one line per act** and holds the centre of the screen while it does.
+* **It has to build up.** Three minutes below a quarter sanity, then a roll once a minute; climb back above a
+  quarter and the clock starts over.
+* **Every pool on that screen is yours to edit**, the new one included: `/sanity hint self_injury
+  add|remove|list|clear|show`.
+* **Try it with `/sanity selfinjury [<targets>]`** — on yourself it needs no permission, so it works in a
+  hardcore world with cheats off; naming somebody else is operator-only.
+
+### New: the Thought Transcription Table
+
+* A block that **transcribes thoughts**: it wants an **Inner Core** plus a thought — a container or a memory
+  counts too — charges experience levels, and shows every requirement before you commit.
+* **JEI support**, so what it costs is browsable like any other recipe.
+
+### New: Shadow Gunpowder, Shadow TNT, and five more fragments
+
+* **Shadow Gunpowder** (dropped by the Screaming Crawler), the **Shadow TNT** block and its primed entity. The
+  blast deals **psychic damage that does not fall off with distance**, breaks blocks the way TNT does, and
+  kills with a message that names whoever lit the fuse — or its own wording when that person is you.
+* **Five more memory fragments**, played on the same tape as the first four, each with a detail line of its
+  own. Not all of them are announced on this page — some are meant to be found.
+* **Watching enough of them changes what you already saw.** Seven of the tapes hide part of their words —
+  thirty lines in all — and those become readable once eight fragments have been watched through. The void's
+  tape and the vessel's hide nothing.
+
+### Changed
+
+* **The old mania whisper overlay is gone.** The deep tier's own lines take its place — and they now also
+  appear five seconds before a burst of true damage, once per episode, so that hit is announced rather than
+  sudden.
+* **The chaos-restraint hint pool is plain white**, like everything else on that screen, and one of its lines
+  stops being drawn once you have read the four main fragments.
+
+### Also in this release
+
+* **Licensing**: the **code** is MIT; **everything else — textures, models, animations, story text and sounds —
+  is all rights reserved**. Every sound and texture is credited per file, with its source and licence, in
+  `ASSETS-CREDITS.md` inside the jar, and the recordings that require attribution name their authors in the
+  mod description as well.
+* **Built on Sanity: Descent Into Madness** by **croissantnova** (MIT), whose attribution and licence text
+  ship inside the jar alongside this one.
+
+---
+## 1.8.0 — previous public release, superseded by 1.21.7
 
 **Status: first part test build.** Back up your worlds before installing.
 
@@ -221,7 +296,7 @@ installing.
   (+1 psychic damage, 1 XP level, cap 100, no XP penalty, enchantments and durability preserved).
   Hold Shift to consume every clump at once.
 * **Inner Shard / Inner Clump / Inner Core** — inner-entity drops and crafting materials.
-* **Stabilizer α / β / γ** — sanity restore with a cooldown.
+* **Mood Stabilizer α / β / γ** — sanity restore with a cooldown.
 * **Garland** — wearable flower accessory.
 * **Spawn eggs** for all three inner entities, in the mod's own creative tab.
 
@@ -244,7 +319,7 @@ installing.
   line** during the last 5 seconds before the mania damage starts; while **mania immunity** is held only the
   *severe* pool is drawn, and during that buff's last 5 seconds the **expiry** pool is shown instead
   (3 built-in lines, editable with `/sanity hint expiry …`).
-* The **expiry warning pool now also covers *Inner Immunity*** (the Gamma stabilizer): whichever immunity
+* The **expiry warning pool now also covers *Inner Immunity*** (the **Mood Stabilizer γ**): whichever immunity
   ends first is announced, and when the two immunity windows overlap the warning is shown **only once**.
   ⚠️ **In this build the warning could not actually be displayed — see the 1.1.1 entry above.**
 * ~~**Inner-voice visibility fix**~~ / ~~**expiry-warning fix**~~ — both were attempted in this build but the

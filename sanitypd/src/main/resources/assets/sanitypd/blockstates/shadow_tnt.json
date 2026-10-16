@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "unstable=false": {
+      "model": "sanitypd:block/shadow_tnt"
+    },
+    "unstable=true": {
+      "model": "sanitypd:block/shadow_tnt"
+    }
+  }
+}

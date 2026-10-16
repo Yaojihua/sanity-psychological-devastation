@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gsg",
+    "hch",
+    "gfg"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "s": {
+      "tag": "sanitypd:self_injury_swords"
+    },
+    "h": {
+      "item": "sanitypd:inner_shard"
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    },
+    "f": {
+      "item": "minecraft:rotten_flesh"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_non_suicidal_self_injury",
+    "count": 1
+  }
+}

@@ -18,6 +18,7 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
+import piloser.sanitypd.thought.EmpoweredThought;
 import piloser.sanitypd.thought.IThoughtChain;
 import piloser.sanitypd.thought.ThoughtCategory;
 import piloser.sanitypd.thought.ThoughtChainProvider;
@@ -64,10 +65,10 @@ public final class ThoughtTooltips
      * The label an <b>untiered</b> thought's effect sits behind.
      *
      * <p>An untiered thought shows the same sentence forever, so "current effect" invites the reader to go
-     * looking for the other tiers. The owner asked for the wording to match the tiered thoughts' page header
+ * looking for the other tiers. The design requires the wording to match the tiered thoughts' page header
      * instead, that is, the "when slotted into your Thought Chain" wording:
      * "for thoughts with no tier, change the label in front of the description from the in-effect wording to
-     * the equipped-in-chain wording, to prevent misunderstanding" (2026-10-03).
+ * the equipped-in-chain wording, to prevent misunderstanding".
      *
      * <p>It is a key of its own rather than a reuse of {@code tooltip.when_equipped}: the two are separate
      * sentences today and may be reworded separately later, and a shared key would silently couple them.
@@ -94,6 +95,16 @@ public final class ThoughtTooltips
     private static final String TIER_KEY = "thought.sanitypd.tooltip.tier";
     private static final String CATEGORY_KEY_PREFIX = "thought.sanitypd.category.";
 
+    /**
+     * The extra line an <b>empowered</b> thought carries, "this thought has been empowered".
+     *
+     * <p>Read off the stack being drawn ({@link EmpoweredThought#is}), never off the chain's counts: being
+     * empowered is a property of the stack's NBT, and the counts that cross the network are six integers with
+     * no tag in them. Asking the stack is also what makes the promise exact - the line appears on the very
+     * stack that will act at its top tier, and never on its unmarked siblings.
+     */
+    private static final String EMPOWERED_KEY = "thought.sanitypd.tooltip.empowered";
+
     /** Colour of a value that helps the player. */
     private static final int BUFF_COLOR = 0x55FF55;
 
@@ -107,6 +118,15 @@ public final class ThoughtTooltips
 
     /** Suffixes of the per-item language entries, matching {@link #TIER_THRESHOLDS}. */
     private static final String[] TIER_SUFFIXES = { ".tier1", ".tier3", ".tier5" };
+
+    /**
+     * Suffixes of the <b>current-effect</b> entries, used by a thought that states its rule in full on that one
+     * line (see {@link ThoughtEffects#hasSeparateCurrentLine}).
+     *
+     * <p>They sit next to the ladder suffixes on purpose: both are read with the same index, and the two sets
+     * therefore cannot drift apart by an off-by-one.
+     */
+    private static final String[] CURRENT_SUFFIXES = { ".current1", ".current3", ".current5" };
 
     /**
      * Adds the thought lines to a tooltip.
@@ -124,12 +144,25 @@ public final class ThoughtTooltips
         boolean equipped = chain != null && chain.holds(thought);
         // The tier index comes from the same call the mechanic uses, and from nowhere else. The tooltip used to
         // recompute it from "the highest of this thought's type counts" - correct for a single-axis thought and
-        // wrong for one whose ladder counts one specific axis. The owner saw exactly that ("高亮有bug"): the bold
+ // wrong for one whose ladder counts one specific axis. Exactly that was seen ("高亮有bug"): the bold
         // line marked the madness tier while the effect used the chaos-restraint one.
         int current = equipped ? ThoughtEffects.tierIndex(Minecraft.getInstance().player, thought) : -1;
+
+        // The mark makes the mechanic treat the worn stack as its top tier, and the server now says which worn
+        // stacks those are (see ThoughtChain#empoweredItemIds). Without that, the detail page counted copies
+        // and drew a lower tier than the effect the player was already getting - the report was "the highlight
+        // on the detail page is out of step".
+        if (empoweredOnChain(chain, thought))
+            current = Math.max(current, ThoughtEffects.tierCount() - 1);
         boolean shift = Screen.hasShiftDown();
 
         lines.add(tagLine(thought));
+
+        // The upgrade's mark, on its own line and in gold. It sits above the effect lines rather than inside
+        // them because it describes the stack itself, not a value: the player reads "this one is empowered"
+        // first, then what it currently grants.
+        if (EmpoweredThought.is(event.getItemStack()))
+            lines.add(Component.translatable(EMPOWERED_KEY).withStyle(ChatFormatting.GOLD));
 
         if (!thought.tiered())
         {
@@ -140,7 +173,7 @@ public final class ThoughtTooltips
             // translatable component and the numbers are arguments. An early version wrote it as
             // CURRENT_KEY(sentence) - the whole sentence nested as an argument of another sentence - and the
             // numbers came out as the literal text "%1$s", because a nested argument is not formatted again.
-            // The owner saw exactly that ("some thoughts still show a key instead of the number").
+ // Exactly that was seen ("some thoughts still show a key instead of the number").
             lines.addAll(effectLines(thought));
             return;
         }
@@ -169,7 +202,14 @@ public final class ThoughtTooltips
         }
     }
 
-    /** The type-and-category line: every type this thought feeds, then the row it belongs to. */
+    /**
+     * The type-and-category line: every type this thought feeds, then - for a category that owns a row - the
+     * row it belongs to.
+     *
+     * <p>A row-less category (hallucinations) is accepted by both rows, so naming one next to the item would
+     * say nothing about where it may go; and its type already carries the same word, which would print
+     * "幻视 幻视". The label is therefore shown only where it answers a question.
+     */
     private static Component tagLine(ThoughtItem thought)    {
         MutableComponent line = Component.empty();
 
@@ -181,6 +221,9 @@ public final class ThoughtTooltips
             line.append(Component.translatable(type.translationKey())
                     .withStyle(Style.EMPTY.withColor(type.color()).withBold(true)));
         }
+
+        if (!thought.category().ownsRow())
+            return line;
 
         line.append(Component.literal(" "));
         line.append(Component.translatable(categoryKey(thought.category()))
@@ -220,13 +263,20 @@ public final class ThoughtTooltips
      */
     private static Component tierText(ThoughtItem thought, int index)
     {
-        return index < 0
-                ? Component.translatable(thought.getDescriptionId() + ".when_equipped")
+        if (index < 0)
+            return Component.translatable(thought.getDescriptionId() + ".when_equipped");
+
+        // A thought whose rule is long enough that repeating it on all three ladder lines makes the detail pane
+        // unreadable states the full rule once per tier under .currentN, while its ladder lines keep only the
+        // clause that changes (see ThoughtEffects#hasSeparateCurrentLine). Every other thought reuses the
+        // ladder sentence here, exactly as before.
+        return ThoughtEffects.hasSeparateCurrentLine(thought)
+                ? sentence(thought, CURRENT_SUFFIXES[index], index)
                 : tierSentence(thought, index);
     }
 
     /**
-     * One tier's sentence, with its number supplied by the mechanic.
+     * One tier's ladder sentence, with its number supplied by the mechanic.
      *
      * <p>The language entry holds the sentence and <b>either one or two</b> placeholders, depending on
      * whether that sentence states a condition: with a condition it carries {@code %1$s} for the condition
@@ -242,7 +292,18 @@ public final class ThoughtTooltips
      */
     private static Component tierSentence(ThoughtItem thought, int index)
     {
-        String key = thought.getDescriptionId() + TIER_SUFFIXES[index];
+        return sentence(thought, TIER_SUFFIXES[index], index);
+    }
+
+    /**
+     * Builds one sentence of a thought from its language suffix, with the arguments that suffix actually has.
+     *
+     * <p>Shared by the ladder lines and the fuller current-effect lines, so the rule "one argument per
+     * placeholder" is stated once, and the audit that counts them has a single implementation to check.
+     */
+    private static Component sentence(ThoughtItem thought, String suffix, int index)
+    {
+        String key = thought.getDescriptionId() + suffix;
         float threshold = ThoughtEffects.sanityThreshold(thought);
 
         // Sentences with a condition carry two placeholders (condition first, value last); Nature Affinity
@@ -269,7 +330,7 @@ public final class ThoughtTooltips
      * literal {@code %1$s} on screen (measured on a dedicated server).
      *
      * <h2>Why several lines</h2>
-     * Fight or Flight states two mutually exclusive states separated by a semicolon, which the owner reported
+ * Fight or Flight states two mutually exclusive states separated by a semicolon, which play-testing reported
      * as hard to read ("给战斗或逃跑文本分下行,只有分号分隔不明显"). Splitting it needs <b>separate entries or
      * separate list elements</b>: the single-component tooltip overload does not split on a newline.
      */
@@ -384,9 +445,25 @@ public final class ThoughtTooltips
         return player == null ? null : player.getCapability(ThoughtChainProvider.CAP).orElse(null);
     }
 
-    /** Category name key, built from the enum name so the key shape stays visible in one place. */
-    private static String categoryKey(ThoughtCategory category)
+    /**
+     * Whether the chain wears an empowered copy of this thought, according to the server's own list.
+     *
+     * <p>Asked of the synced id list rather than of the stack being drawn: the tooltip is shown wherever the
+     * item is (inventory, a chest, JEI), and the thing that decides the tier is what is <b>worn</b>. Reading
+     * the drawn stack would light up a carried copy that grants nothing, and would leave the worn one dark.
+     */
+    private static boolean empoweredOnChain(IThoughtChain chain, ThoughtItem thought)
     {
+        if (chain == null)
+            return false;
+
+        String id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(thought).toString();
+
+        return chain.empoweredItemIds().contains(id);
+    }
+
+    /** Category name key, built from the enum name so the key shape stays visible in one place. */
+    private static String categoryKey(ThoughtCategory category)    {
         return CATEGORY_KEY_PREFIX + category.name().toLowerCase(java.util.Locale.ROOT);
     }
 

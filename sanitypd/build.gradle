@@ -176,6 +176,11 @@ dependencies {
     // Jade: soft dependency, compile-time API use only; modpacks without Jade still run fine.
     compileOnly fg.deobf("maven.modrinth:jade:${jade_version}")
 
+    // JEI: soft dependency, compile-time API use only - the transcription table's own recipe page. Nothing in
+    // the mod's common code may name a JEI type, or players without JEI would crash on load: the plugin class is
+    // found by JEI's own @JeiPlugin scan and is referenced from nowhere else. Same shape as Jade above.
+    compileOnly fg.deobf("maven.modrinth:jei:${jei_version}")
+
     // Real mod deobf dependency examples - these get remapped to your current mappings
     // implementation fg.deobf("com.tterrag.registrate:Registrate:MC${mc_version}-${registrate_version}") // Adds registrate as a dependency
 

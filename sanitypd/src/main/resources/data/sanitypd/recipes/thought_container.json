@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "gcg",
+    " g "
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "c": {
+      "item": "sanitypd:inner_clump"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_container",
+    "count": 1
+  }
+}

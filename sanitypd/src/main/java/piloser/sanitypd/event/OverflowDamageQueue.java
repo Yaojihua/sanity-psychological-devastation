@@ -53,8 +53,12 @@ public final class OverflowDamageQueue
 
     /**
      * One pending overflow hit. {@code forcedPsychicOverflow} always uses the psychic_overflow type (inner mob branch).
+     *
+     * <p>{@code messageType} is the death-message type an in-flight hit asked for (shadow TNT and nothing
+     * else today); {@code null} means "decide from the attacker", which is the original behaviour.
      */
-    private record Overflow(LivingEntity target, float amount, Entity attacker, boolean forcedPsychicOverflow)
+    private record Overflow(LivingEntity target, float amount, Entity attacker, boolean forcedPsychicOverflow,
+                            net.minecraft.resources.ResourceKey<net.minecraft.world.damagesource.DamageType> messageType)
             implements Entry
     {
         @Override
@@ -62,6 +66,8 @@ public final class OverflowDamageQueue
         {
             if (forcedPsychicOverflow)
                 SanityDamageTypes.dealPsychicOverflow(target, amount, attacker);
+            else if (messageType != null)
+                SanityDamageTypes.dealOverflowWithType(target, amount, attacker, messageType);
             else
                 SanityCombat.applyOverflowDamage(target, amount, attacker);
         }
@@ -96,10 +102,23 @@ public final class OverflowDamageQueue
      */
     public static void enqueue(LivingEntity target, float overflow, Entity attacker)
     {
+        enqueue(target, overflow, attacker, null);
+    }
+
+    /**
+     * Queues the overflow part of a psychic hit, with an <b>explicit death-message type</b>.
+     *
+     * <p>The type is captured here rather than looked up when the queue resolves, because the damage source
+     * that chose it (the shadow TNT blast, through {@code SanityCombat.peekOverflowMessageType}) is out of
+     * scope by then. A {@code null} type keeps the original "decide from the attacker" behaviour.
+     */
+    public static void enqueue(LivingEntity target, float overflow, Entity attacker,
+                               net.minecraft.resources.ResourceKey<net.minecraft.world.damagesource.DamageType> messageType)
+    {
         if (target == null || overflow <= 0.0f)
             return;
 
-        QUEUE.add(new Overflow(target, overflow, attacker, false));
+        QUEUE.add(new Overflow(target, overflow, attacker, false, messageType));
     }
 
     /**
@@ -127,7 +146,7 @@ public final class OverflowDamageQueue
         if (target == null || overflow <= 0.0f)
             return;
 
-        QUEUE.add(new Overflow(target, overflow, attacker, true));
+        QUEUE.add(new Overflow(target, overflow, attacker, true, null));
     }
 
     /**
@@ -143,6 +162,26 @@ public final class OverflowDamageQueue
         for (Entry entry : QUEUE)
         {
             if (entry instanceof Drain)
+                count++;
+        }
+
+        return count;
+    }
+
+    /**
+     * How many overflow hits are waiting to be resolved.
+     *
+     * <p>The counterpart of {@link #pendingDrains()} and it exists for the same reason: a check must be able
+     * to assert "the overflow was queued" without pumping the server tick, and without reaching into the
+     * queue's internals.
+     */
+    public static int pendingOverflows()
+    {
+        int count = 0;
+
+        for (Entry entry : QUEUE)
+        {
+            if (entry instanceof Overflow)
                 count++;
         }
 

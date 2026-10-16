@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "geg",
+    "fcf",
+    "gbg"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "e": {
+      "item": "minecraft:emerald"
+    },
+    "f": {
+      "item": "minecraft:feather"
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    },
+    "b": {
+      "item": "minecraft:book"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_hallucination_human",
+    "count": 1
+  }
+}

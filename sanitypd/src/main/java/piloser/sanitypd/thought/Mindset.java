@@ -13,7 +13,7 @@ import net.minecraft.resources.ResourceLocation;
  *
  * @param id        id stem: also the language key suffix and the icon file name, e.g. {@code composure}
  * @param type      the counter that drives it
- * @param threshold how many thoughts of that type are needed; the owner's rule is "at least", so a
+ * @param threshold how many thoughts of that type are needed; the rule is "at least", so a
  *                  threshold of 5 means the 5th thought turns it on
  * @param icon      the 16x16 texture drawn inside the row-3 slot
  */

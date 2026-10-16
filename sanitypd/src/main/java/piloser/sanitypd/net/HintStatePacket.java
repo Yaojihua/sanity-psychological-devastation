@@ -17,7 +17,7 @@ import net.minecraftforge.network.NetworkEvent;
  *
  * <h2>Only the interesting half is reported</h2>
  * The flag is true for the severe, deep, expiry and extra inner-voice lines and <b>false for the mild
- * tier</b>, which is the owner's rule: the bonus does not apply to mild lines. That also keeps the mild
+ * tier</b>, which is the rule: the bonus does not apply to mild lines. That also keeps the mild
  * tier - by far the most frequent - from producing any traffic at all.
  *
  * <p><b>No client types here.</b> This class is loaded during common setup, on both sides, so it must not

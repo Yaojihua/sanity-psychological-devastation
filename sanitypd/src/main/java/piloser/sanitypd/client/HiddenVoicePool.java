@@ -14,6 +14,7 @@ import net.minecraft.world.level.storage.LevelResource;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import piloser.sanitypd.SanityMod;
+import piloser.sanitypd.item.HiddenMemoryGrant;
 import piloser.sanitypd.mixin.MixinServerPlayerSeenCredits;
 
 import java.nio.charset.StandardCharsets;
@@ -38,6 +39,16 @@ import java.util.Objects;
  * <p>A save that <b>already carries vanilla's own record</b> counts as unlocked too: a player who beat the
  * dragon before installing this mod has no marker file, but vanilla saved {@code seenCredits} in his player
  * data, so the pool adopts that instead of staying locked forever (see {@link #vanillaSaysPoemSeen}).
+ *
+ * <h2>How it ends: anchoring</h2>
+ * Once this save has read the four story fragments through, the voice stops joining the draw for good.
+ * Reading its memories is what anchors it, and an anchored one can no longer cut in - the cost of the
+ * anchor, and the reason it resisted being named. The condition is derived from the tape's own watch markers
+ * rather than stored again: those markers are what "read" means, and a second flag could disagree with them
+ * after a save is copied, while this single reading is what the pool already consults before it speaks.
+ *
+ * <p>Nothing else needs gating: these lines were never reachable from a command, so the preview and the two
+ * warning windows stay exactly as they were.
  *
  * <h2>How the lines are used</h2>
  * They are merged into the severe tier by {@link MentalHintManager#pickHintForDraw(int)} and by nothing
@@ -96,6 +107,9 @@ public final class HiddenVoicePool
     /** Whether the current save has unlocked the pool. */
     private static boolean s_unlocked;
 
+    /** Last value reported by {@link #anchored()}, so the change from "can speak" to "silent" is logged once. */
+    private static boolean s_anchoredLogged;
+
     /** Save folder the current state was read from, so a save change is detected by comparison. */
     private static Path s_loadedSaveRoot;
 
@@ -147,6 +161,29 @@ public final class HiddenVoicePool
     public static boolean isUnlocked()
     {
         return s_unlocked;
+    }
+
+    /**
+     * Whether this save's story has anchored the voice: the four story fragments have been read through.
+     *
+     * <p>Derived from the tape's own watch markers (see {@code MemoryTapeRecord}), which are cached, so asking
+     * on every draw costs four map lookups. A state change is logged once, which is also what the diagnostic
+     * probe watches for.
+     */
+    public static boolean anchored()
+    {
+        boolean anchored = (MemoryTapeRecord.watchedMask() & HiddenMemoryGrant.ALL) == HiddenMemoryGrant.ALL;
+
+        if (anchored != s_anchoredLogged)
+        {
+            s_anchoredLogged = anchored;
+
+            SanityMod.LOGGER.info("[THIRD-VOICE] the story is {} for this save; the extra voice is {}",
+                    anchored ? "read through" : "not read through",
+                    anchored ? "silent from now on" : "still able to cut in");
+        }
+
+        return anchored;
     }
 
     /**
@@ -308,11 +345,14 @@ public final class HiddenVoicePool
      * tiers use), and so is any line the player already has as a custom line of that tier or that appears
      * twice here: the point of the pool is a new sentence, not the same one twice.
      *
+     * <p>An anchored story answers with nothing at all (see the class comment): the voice has been fixed in
+     * place and no longer cuts in.
+     *
      * @param alreadyVisible raw texts of the lines that are already in the same draw, may be {@code null}
      */
     public static List<String> eligibleLines(List<String> alreadyVisible)
     {
-        if (!s_unlocked)
+        if (!s_unlocked || anchored())
             return Collections.emptyList();
 
         buildLines();

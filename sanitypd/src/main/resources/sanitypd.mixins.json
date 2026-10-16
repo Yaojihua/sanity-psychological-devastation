@@ -32,7 +32,8 @@
     "MixinGameRenderer",
     "MixinPigRenderer",
     "MixinSheepFurLayer",
-    "MixinSheepRenderer"
+    "MixinSheepRenderer",
+    "MixinSoundEngine"
   ],
   "server": []
 }

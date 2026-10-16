@@ -151,8 +151,8 @@ public final class ProbeImpactProbe
         // psychic_overflow true damage that the overflow conversion deals at the end of the tick also has an
         // inner entity as its source, so the probe read its own consequence as a fresh melee - and, because
         // it used to trigger the bonus for real, it manufactured a new psychic hit every tick. The loop was
-        // self-sustaining (2.0 psychic -> 1.6 true damage -> a new "melee" next tick) and killed the owner's
-        // player in half a second on 2026-10-04 (11 hits in 11 ticks, 6 626 241 B / 1.5.1 build).
+ // self-sustaining (2.0 psychic -> 1.6 true damage -> a new "melee" next tick) and killed the
+ // player in half a second on (11 hits in 11 ticks, 6 626 241 B / 1.5.1 build).
         // A whitelist of the vanilla melee types cannot match any of this mod's damage types.
         if (!source.is(net.minecraft.world.damagesource.DamageTypes.MOB_ATTACK)
                 && !source.is(net.minecraft.world.damagesource.DamageTypes.MOB_ATTACK_NO_AGGRO))
@@ -426,7 +426,7 @@ public final class ProbeImpactProbe
             // Fixed in v2.15.0 (second pass): 1.20.1 hands back a Forge LazyOptional from getCapability,
             // not a java.util.Optional, and the method resolves against the Capability INTERFACE. This is
             // the shape HintWindowProbe uses, and that one is proven: it prints a real sanity percentage in
-            // the owner log. Resolving against token.getClass() and testing for java.util.Optional both
+ // the author log. Resolving against token.getClass and testing for java.util.Optional both
             // yielded null here - which is exactly the -1.00 this fix exists to remove.
             Class<?> capabilityClass = Class.forName("net.minecraftforge.common.capabilities.Capability");
             java.lang.reflect.Method getCapability = entity.getClass().getMethod("getCapability", capabilityClass);

@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
@@ -15,6 +16,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
+import piloser.sanitypd.event.MemoryTapeGuard;
 
 /**
  * A memory fragment: a story item and nothing else. It has <b>no gameplay effect at all</b>.
@@ -40,7 +44,7 @@ public class LostMemoryFragmentItem extends Item
 
     /**
      * Hold pose: the <b>bow pull</b>, deliberately the very same animation the shadow sword and shadow
-     * axe use while charging (owner's request: charge with a drawn-bow pose, like the shadow sword).
+ * axe use while charging (required: charge with a drawn-bow pose, like the shadow sword).
      */
     public static final UseAnim USE_ANIM = UseAnim.BOW;
 
@@ -76,6 +80,32 @@ public class LostMemoryFragmentItem extends Item
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand)
     {
         ItemStack stack = player.getItemInHand(hand);
+
+        // The tapes are the story's second half: a player who has not watched the end poem through is refused
+        // here, in the action bar, and nothing is charged. The client half of the sequence keys off the
+        // item-use state, so refusing before startUsingItem is exactly what "it does not even charge" means.
+        if (level.isClientSide)
+        {
+            // Fully qualified on purpose: this class loads on a dedicated server too, and a client-only type
+            // must not appear in its imports (the same rule SanityCommand follows).
+            Boolean seen = DistExecutor.unsafeCallWhenOn(Dist.CLIENT,
+                    () -> () -> piloser.sanitypd.client.MemoryTapeGate.poemSeen());
+
+            if (Boolean.FALSE.equals(seen))
+            {
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> piloser.sanitypd.client.MemoryTapeGate
+                        .notice(piloser.sanitypd.client.MemoryTapeGate.NEED_POEM));
+
+                return InteractionResultHolder.fail(stack);
+            }
+        }
+        else if (player instanceof ServerPlayer serverPlayer && !MemoryTapeGuard.hasSeenPoem(serverPlayer))
+        {
+            // Silent on purpose: the client owns the wording and has already refused this same use. What the
+            // server adds is that a client which skipped its own check cannot start the sequence anyway.
+            return InteractionResultHolder.fail(stack);
+        }
+
         // Both sides start the use; the client half of the sequence keys off exactly this state, so no
         // packet is needed to tell it that the charge began.
         player.startUsingItem(hand);
@@ -86,7 +116,7 @@ public class LostMemoryFragmentItem extends Item
      * Nothing is settled here.
      *
      * <p>Releasing early is not a gameplay event: the client notices that the use ended and aborts the
-     * presentation by itself (the owner: releasing before the black screen cancels it). Releasing after the
+ * presentation by itself (the author: releasing before the black screen cancels it). Releasing after the
      * tape screen has taken over is equally meaningless, because the sequence has already moved on.
      */
     @Override
@@ -97,7 +127,7 @@ public class LostMemoryFragmentItem extends Item
     /**
      * The detail line: one word per fragment, shown in grey under the name.
      *
-     * <p>The owner's rule: the first fragment reads "Doubt", the Nether one reads "Longing". Kept as one
+ * <p>The rule: the first fragment reads "Doubt", the Nether one reads "Longing". Kept as one
      * language key per fragment so the wording can change without touching this class.
      */
     @Override

@@ -9,9 +9,12 @@ import piloser.sanitypd.sound.MemoryChargeSoundInstance;
 import piloser.sanitypd.sound.MemoryHissSoundInstance;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.RenderGuiEvent;
+import net.minecraftforge.client.event.sound.PlaySoundEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -19,7 +22,7 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * Client half of the "Lost Memory Fragment" story item - part 1 of the sequence.
  *
- * <h2>The owner's spec (2026-10-05)</h2>
+ * <h2>Specification</h2>
  * <ol>
  *   <li>Hold right click to charge; the item has no other function</li>
  *   <li>The vanilla HUD is hidden for the <b>whole</b> stretch: charging <i>and</i> the black tape screen
@@ -33,20 +36,22 @@ import net.minecraftforge.fml.common.Mod;
  * The sequence is presentation, and the "am I holding it" state is already synchronised by vanilla's own
  * item-use pipeline, so it is read locally instead of adding a packet. No server behaviour depends on it.
  *
- * <h2>Two rules that are easy to break later</h2>
+ * <h2>Rules that are easy to break later</h2>
  * <ul>
  *   <li>The previous value of {@code options.hideGui} is <b>remembered and put back</b>: F1 is the
  *       player's own toggle, and a player who had the HUD hidden must still have it hidden afterwards.</li>
  *   <li>Every path out of the sequence goes through {@link #closeTape(Minecraft)} / {@link #cancel(Minecraft)},
  *       which are idempotent - a released button, a closed screen, a removed screen and a world unload all
  *       end up in the same place instead of leaking a hidden HUD.</li>
+ *   <li>While the tape is up, every sound that is <b>not</b> one of the tape's own clips is turned away
+ *       (see {@link #onPlaySound(PlaySoundEvent)}), so the black screen carries nothing but the tape.</li>
  * </ul>
  */
 @OnlyIn(Dist.CLIENT)
 @Mod.EventBusSubscriber(modid = SanityMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class MemorySequence
 {
-    /** Silence before the charge clip starts: the owner asked for the sound to begin after 1 second. */
+ /** Silence before the charge clip starts: the design requires the sound to begin after 1 second. */
     public static final int CHARGE_DELAY_TICKS = 20;
 
     /** Length of the charge clip. The file is 3.65 s long, which is 73 ticks at 20 tps. */
@@ -74,6 +79,20 @@ public final class MemorySequence
         LocalPlayer player = mc.player;
 
         if (player == null || mc.level == null)
+        {
+            cancel(mc);
+            return;
+        }
+
+        // A dead player never watches the tape, and must never (re)open it.
+        //
+        // Without this the two screens take turns owning the display forever: vanilla puts the death screen up,
+        // the tape is replaced and closes, and then the still-active item use reopens it on the next tick from
+        // the block below - the death screen comes back, the tape reopens, and so on. That loop is what a
+        // player sees as a frozen game, and being killed inside the tape is expected rather than a freak
+        // accident: the protection lets through exactly what also kills a creative player (the void, /kill),
+        // so falling out of the world mid-tape is the normal way to die here.
+        if (player.isDeadOrDying())
         {
             cancel(mc);
             return;
@@ -134,6 +153,17 @@ public final class MemorySequence
                 ? fragment.scriptKey()
                 : "lost_memory_fragment";
 
+        // Story order: a fragment plays only once the one before it has been watched through. Refused here and
+ // not at the item, because the rule for this case is "it does not play" - the charge still
+        // happens, and the refusal is what the player sees instead of a tape.
+        if (!MemoryTapeGate.mayWatch(scriptKey))
+        {
+            MemoryTapeGate.notice(MemoryTapeGate.OUT_OF_ORDER);
+            cancel(mc);
+
+            return;
+        }
+
         // Black screen first, then the bed: the hiss is what "the tape is playing" sounds like.
         s_tape = new MemoryTapeScreen(scriptKey);
         mc.setScreen(s_tape);
@@ -145,6 +175,11 @@ public final class MemorySequence
             s_charge.doStop();              // the clip has just ended; make sure nothing is left over
             s_charge = null;
         }
+
+        // Cut whatever is already running - music, a mob, the world - so the black screen really is
+        // silent apart from the tape. Anything that starts afterwards is turned away in onPlaySound.
+        // This runs before the bed below, which is the one sound that has to survive the cut.
+        mc.getSoundManager().stop();
 
         if (player != null && ConfigProxy.getPlaySounds(player.level().dimension().location()))
         {
@@ -223,6 +258,36 @@ public final class MemorySequence
     {
         if (s_hudHidden)
             event.setCanceled(true);
+    }
+
+    /**
+     * Lets the tape's own clips through and silences everything else while the tape screen is up.
+     *
+     * <p>Vanilla offers every sound to Forge on its way into the sound engine, and a sound that is
+     * replaced with {@code null} there is never played. That covers music, ambience, mobs, blocks and the
+     * interface, and it is the only place that works in both situations the tape runs in: in single player
+     * the world is paused and the screen hands the sound engine back every frame, while on a server the
+     * world keeps running behind the tape and would otherwise be fully audible.
+     *
+     * <p>The tape's own clips - the charge-up, the hiss bed and the eject clicks - are the mod's
+     * {@code memory_} sounds, and they are the only ones allowed through. Anything already playing when
+     * the black screen opens is stopped separately, in {@link #openTape(Minecraft)}.
+     */
+    @SubscribeEvent
+    public static void onPlaySound(PlaySoundEvent event)
+    {
+        if (s_tape == null)
+            return;
+
+        SoundInstance sound = event.getSound();
+        if (sound == null)
+            return;                         // already cancelled by somebody else
+
+        ResourceLocation id = sound.getLocation();
+        if (SanityMod.MODID.equals(id.getNamespace()) && id.getPath().startsWith("memory_"))
+            return;
+
+        event.setSound(null);
     }
 
     /**

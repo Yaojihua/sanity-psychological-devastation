@@ -55,6 +55,7 @@ import net.minecraftforge.event.level.SleepFinishedTimeEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.server.ServerLifecycleHooks;
+import piloser.sanitypd.net.PacketHandler;
 import piloser.sanitypd.net.ThoughtChainPacket;
 import piloser.sanitypd.thought.IThoughtChain;
 import piloser.sanitypd.thought.MadnessCombat;
@@ -115,6 +116,7 @@ public class EventHandler
     public void syncThoughtChainOnJoin(final PlayerEvent.PlayerLoggedInEvent event)
     {
         syncThoughtChain(event.getEntity());
+        pushPoemSeen(event.getEntity());
     }
 
     /** Same push after a respawn, where the counts come from the copy made in {@link #cloneThoughtChain}. */
@@ -122,6 +124,7 @@ public class EventHandler
     public void syncThoughtChainOnRespawn(final PlayerEvent.PlayerRespawnEvent event)
     {
         syncThoughtChain(event.getEntity());
+        pushPoemSeen(event.getEntity());
     }
 
     private static void syncThoughtChain(Player player)
@@ -129,6 +132,25 @@ public class EventHandler
         if (player instanceof ServerPlayer serverPlayer)
             serverPlayer.getCapability(ThoughtChainProvider.CAP)
                     .ifPresent(chain -> ThoughtChainPacket.send(serverPlayer, chain));
+    }
+
+    /**
+     * Tells the client whether the memory tapes may be watched.
+     *
+     * <p>The flag is vanilla's private {@code ServerPlayer.seenCredits}, which the game never syncs, and the
+     * tape's refusal has to happen on the client (the charge follows the client's own item-use state). Seeing
+     * it here as well as in the once-a-second poll means a fresh client is never left guessing.
+     */
+    private static void pushPoemSeen(Player player)
+    {
+        if (player instanceof ServerPlayer serverPlayer)
+        {
+            PacketHandler.sendPoemSeen(serverPlayer, MemoryTapeGuard.hasSeenPoem(serverPlayer));
+            // Same push for the hidden fragment's allowance: the client half of the hidden name needs it to
+            // decide whether this command ends in a fragment or in a closed game.
+            PacketHandler.sendHiddenAllowance(serverPlayer,
+                    piloser.sanitypd.item.HiddenMemoryGrant.allowanceAvailable(serverPlayer));
+        }
     }
 
     @SubscribeEvent
@@ -178,7 +200,7 @@ public class EventHandler
         // "Friendly creatures" is wider than vanilla's Animal: a villager and a wandering trader
         // are peaceful too, and the Law of the Jungle thought promises its penalty applies to them.
         // Upstream only tested `instanceof Animal`, and Villager extends AbstractVillager -> AgeableMob, so
-        // hitting a villager cost nothing at all - the owner reported that as a bug on 2026-10-03.
+ // hitting a villager cost nothing at all - play-testing reported that as a bug on.
         //
         // AbstractVillager (not Villager) so the wandering trader is covered by the same rule.
         if (!(event.getEntity() instanceof Animal) && !(event.getEntity() instanceof AbstractVillager))
@@ -316,6 +338,11 @@ public class EventHandler
             piloser.sanitypd.thought.MadnessCombat.forget(sp);
             piloser.sanitypd.thought.HintState.forget(sp);
             piloser.sanitypd.thought.StressAnalgesia.forget(sp);
+            piloser.sanitypd.thought.StockholmSyndrome.forget(sp);
+            piloser.sanitypd.thought.SelfInjury.forget(sp);
+            // Drops the "poem flag already sent" record, so the next join pushes it again instead of leaving a
+            // fresh client to assume the tapes are locked.
+            MemoryTapeGuard.forget(sp.getUUID());
         }
     }
 
@@ -329,6 +356,18 @@ public class EventHandler
     {
         if (event.getEntity() instanceof ServerPlayer sp)
             piloser.sanitypd.thought.StressAnalgesia.onHurt(sp, event.getAmount());
+    }
+
+    // ---- Stockholm Syndrome: being hurt restores sanity, but the mania drain does not count ----
+    //
+    // Same event as the rule above, and for the same reason. The source is passed on because this thought
+    // deliberately ignores one damage type (see StockholmSyndrome): the per-second mania drain must not pay
+    // for the sanity that would end the mania.
+    @SubscribeEvent
+    public void onLivingHurtStockholm(final LivingHurtEvent event)
+    {
+        if (event.getEntity() instanceof ServerPlayer sp)
+            piloser.sanitypd.thought.StockholmSyndrome.onHurt(sp, event.getAmount(), event.getSource());
     }
 
     // ---- psychic / true damage / negative-effect combat rules (server side) ----
@@ -455,6 +494,12 @@ public class EventHandler
     public void localLevelLoad(final LevelEvent.Load event)
     {
         if (event.getLevel() instanceof ClientLevel)
+        {
             SoundPlayback.onClientLevelLoad((ClientLevel) event.getLevel());
+            // The self-injury timeline belongs to one world: a wound's tail (the ducking, the silence, the blur)
+            // must not leak into the next world loaded in the same client session.
+            piloser.sanitypd.client.SelfInjuryPresentation.reset();
+piloser.sanitypd.client.BloodDecals.clear();
+        }
     }
 }

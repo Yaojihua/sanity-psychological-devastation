@@ -1,0 +1,47 @@
+“■■■■.”
+[unbound]“Cacomorth.”
+“This is the ■■th macaron you have eaten today”
+“You do not have a body like mine, so you should not eat this many”
+“......Ah, {player}, I did not notice how many I had eaten at all”
+“If it bothers you, I can eat fewer”
+“......Ah”
+“■■■■, just how fond of these are you, to keep eating without stopping?”
+[unbound]“Cacomorth, just how fond of these are you, to keep eating without stopping?”
+“......Mm, I do not know”
+“Perhaps because it resembles me in its name, or in something like that”
+“But the important thing is that it is sweet”
+“Uh......sweet?”
+“Yes, {player}”
+“I once heard that a person is made, in essence, of 「love」”
+“When a baby is newborn, it cannot speak yet”
+“and yet it loves......”
+“After that, I began to feel faintly that sweets and love must be connected somehow”
+“Because both of them make people smile?”
+“......Mm, perhaps there is one more thing”
+“Because sweetness can teach you how to express love”
+“Before, after hearing those words, I ■■ for a long while”
+“I have never liked that all of this is fake, so......”
+“Whenever there is no one around, I cut myself into pieces”
+“and then watch with my own eyes as I slowly close up again”
+“In the pain, that is the only way I can let it out”
+“Because nothing real can share the burden for me”
+“......But since I met you, {player}, I have understood a great deal”
+“After dissecting the ■■ ever more deeply, I think I am no longer afraid”
+[unbound]“After dissecting reality ever more deeply, I think I am no longer afraid”
+“......It suddenly seems to me that being here is not such a big deal”
+“Why?”
+“Because you are here, and you are real”
+“......”
+“Perhaps, ■■■■, after all you took me on a journey through the whole world”
+[unbound]“Perhaps, Cacomorth, after all you took me on a journey through the whole world”
+“But in the end we still come back here”
+“■■, this place is dark, frightening, deeply uncomfortable”
+[unbound]“The void, this place is dark, frightening, deeply uncomfortable”
+“Whenever I stay here too long, I feel terrible”
+“But lately you will not let me out, saying I would die”
+“But I am a player, I am {player}, and even dying is not such a big deal”
+“Is it really too much to step one foot outside the door?”
+“......■■■■, I beg you, I want to go out”
+[unbound]“......Cacomorth, I beg you, I want to go out”
+“......{player}......”
+“......I, shall we talk about something else?”

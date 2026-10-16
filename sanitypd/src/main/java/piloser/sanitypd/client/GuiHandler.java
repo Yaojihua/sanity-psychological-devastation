@@ -67,8 +67,36 @@ public class GuiHandler
         handler.drawCentreHint(event.getGuiGraphics());
     }
 
+    /**
+     * Flashes the blood-tendril overlay at full strength - the same effect a sudden loss of sanity produces.
+     *
+ * <p>Called by {@link SelfInjuryPresentation} at the moment of the wound. The design requires the act to look
+     * like sanity leaving the body, and the overlay's flash path <b>is</b> that effect, so the act drives the two
+     * fields the sanity-drop path drives (see {@code tickBt}) rather than introducing a second way to draw the
+     * same texture - which would be a second set of alpha rules to keep in step.
+     */
+    public static void requestBloodTendrilFlash()
+    {
+        GuiHandler handler = s_instance;
+
+        if (handler == null || handler.m_mc.player == null)
+            return;
+
+        ResourceLocation dim = handler.m_mc.player.level().dimension().location();
+
+        if (!ConfigProxy.getRenderBtOverlay(dim) || !ConfigProxy.getFlashBtOnShortBurst(dim))
+            return;
+
+        // The sanity-drop path scales the flash by how much sanity was lost; a wound is a fixed, large event, so
+        // it asks for the top of that range.
+        handler.m_btGainedAlpha = BT_FLASH_MAX;
+    }
+
     private static final float PASSIVE_THRESHOLD = Sanity.MAX_SANITY * .0002f; // 0.02 points/tick (= 0.02% of the cap)
     private static final float BT_DELAY = 5f * 20;
+
+    /** How hard the blood-tendril overlay flashes when a burst of sanity leaves the player (see {@code tickBt}). */
+    private static final float BT_FLASH_MAX = .75f;
 
     /**
      * Tier threshold for the mental hints. The three tiers themselves live in {@link MentalHintManager}:
@@ -177,6 +205,21 @@ public class GuiHandler
      */
     private static final int HINT_STAGE_EXPIRY = MentalHintManager.INDEX_EXPIRY;
 
+    /**
+     * Tier stored for the centre-screen line while it comes from the self-injury pool
+     * ({@link MentalHintManager#INDEX_SELF_INJURY}), i.e. from one tick to six seconds after a wound.
+     */
+    private static final int HINT_STAGE_SELF_INJURY = MentalHintManager.INDEX_SELF_INJURY;
+
+    /**
+ * How long a self-injury line stays on screen, in ticks (6 s - the window, and the same number
+     * {@code SelfInjuryPresentation#HINT_WINDOW_TICKS} gives the pool).
+     *
+     * <p>Kept as its own constant instead of reusing {@link #HINT_SHOW_TICKS} (199) because the pool's life is
+     * the act's window: the two have to agree, and a reader should not have to derive one from the other.
+     */
+    private static final float SELF_INJURY_HINT_SHOW_TICKS = SelfInjuryPresentation.HINT_WINDOW_TICKS;
+
     public static final ResourceLocation SANITY_INDICATOR = new ResourceLocation(SanityMod.MODID, "textures/sanity_indicator.png");
     public static final ResourceLocation BLOOD_TENDRILS_OVERLAY = new ResourceLocation(SanityMod.MODID, "textures/overlay/blood_tendrils.png");
 
@@ -225,6 +268,31 @@ public class GuiHandler
     private int m_hintColor = 0xFFFFFF;
     /** Whether "the extra inner-voice line reached the screen" was already written for this line. */
     private boolean m_hiddenVoiceDrawLogged;
+
+    /** Whether "the self-injury line reached the screen" was already written for this act. */
+    private boolean m_selfInjuryDrawLogged;
+
+    /**
+     * The line picked for the current self-injury window, held until a new act opens a new one.
+     *
+     * <p>Held instead of read back off {@code m_hintStage}, because that slot is shared: the expiry and
+     * deep-warning branches write their own text into it every frame they are open (through
+     * {@code drawWarningLine}, which also drops what was there). Keying the pick on the slot re-rolled the pool
+     * on every one of those frames - measured live as 55 picks for 23 acts.
+     */
+    private MutableComponent m_selfInjuryLine;
+
+    /** The window generation {@link #m_selfInjuryLine} was picked in; a new act bumps it. */
+    private int m_selfInjuryWindowGeneration = -1;
+
+    /**
+     * This pool's own fade counter.
+     *
+     * <p>{@code m_showingHintTimer} cannot be used across the window: the warning branches above re-arm it on
+     * every frame, so the line would sit in its fade-in phase forever. The pool therefore keeps its own count
+     * and copies it into the shared field each frame, which is what {@code drawHintLine} reads.
+     */
+    private float m_selfInjuryShowTicks;
 
     /**
      * Text of the "immunity is about to expire" warning currently on screen, or {@code null}.
@@ -378,7 +446,45 @@ public class GuiHandler
                 return true;
             });
         });
+
+        // Self-injury: the view's blur, as two passes of vanilla's own `blur` program - horizontal, then
+        // vertical - because a single pass of a box blur only smears along one axis. Both passes read the same
+        // strength, so the gentle fifteen-percent wind-down and the sharp half-second after the wound are one
+        // number on one scale (see SelfInjuryPresentation#blurStrength).
+        //
+        // Every entry below reports false while its strength is zero - which is the whole time outside the act -
+        // and PostProcessor skips an entry whose processor says no, so nothing about the other situations changes.
+        for (float[] direction : BLUR_DIRECTIONS)
+        {
+            m_post.addSinglePassEntry("blur", pass ->
+            {
+                float strength = SelfInjuryPresentation.blurStrength();
+
+                if (strength <= 0f)
+                    return false;
+
+                pass.getEffect().safeGetUniform("Radius").set(SelfInjuryPresentation.BLUR_MAX_TEXELS * strength);
+                pass.getEffect().safeGetUniform("BlurDir").set(direction[0], direction[1]);
+                return true;
+            });
+        }
+
+        // And the double image the act leaves behind: the mod's own single-pass program, which draws the sharp
+        // view with one faded copy displaced by a uniform number of texels (see the .fsh of the same name).
+        m_post.addSinglePassEntry("self_injury_ghost", pass ->
+        {
+            float strength = SelfInjuryPresentation.ghostStrength();
+
+            if (strength <= 0f)
+                return false;
+
+            pass.getEffect().safeGetUniform("GhostOffset").set(SelfInjuryPresentation.GHOST_MAX_TEXELS * strength);
+            return true;
+        });
     }
+
+    /** The two axes the blur is applied along, in the order the passes run: horizontal first, then vertical. */
+    private static final float[][] BLUR_DIRECTIONS = { { 1f, 0f }, { 0f, 1f } };
 
     private boolean processPlayer(LocalPlayer player, Function<ISanity, Boolean> action)
     {
@@ -568,7 +674,7 @@ public class GuiHandler
      *
      * <p>A grey red rather than a bright one on purpose - bright red already means "your sanity is low" in
      * this HUD family, while this state says something different: you cannot recover any further, however long
-     * you wait. Kept as one constant so the owner can tune the shade without touching the logic.
+ * you wait. Kept as one constant so it can be tuned the shade without touching the logic.
      */
     private static final int SANITY_CEILING_COLOUR = 0xB06060;
 
@@ -624,7 +730,7 @@ public class GuiHandler
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         // Grey-red while the value sits at (or above) the recovery ceiling Depersonalization imposes; white
-        // otherwise. The ceiling is NOT the sanity maximum, so this is a state of its own: the owner asked for
+ // otherwise. The ceiling is NOT the sanity maximum, so this is a state of its own: the design requires
         // it to be readable at a glance without the maximum itself ever moving. Logged on change, because the
         // colour is the only part of this that a probe cannot see.
         int colour = sanityValueColour();
@@ -674,7 +780,7 @@ public class GuiHandler
      * single comparison. The immediate {@code /sanity hint show} preview goes through the same field, so it
      * counts too - which is right: it is the same line on the same screen.
      *
-     * <p>The owner's rule is that the Command Hallucination bonus does <b>not</b> apply to the mild tier,
+ * <p>The rule is that the Command Hallucination bonus does <b>not</b> apply to the mild tier,
      * which is exactly the case this returns false for.
      */
     public static boolean isNonMildHintOnScreen()
@@ -705,6 +811,12 @@ public class GuiHandler
             // is the failure the two earlier display bugs hid behind.
             m_hiddenVoiceDrawLogged = true;
             SanityMod.LOGGER.info("[THIRD-VOICE] line shown on screen: {}", m_hint.getString());
+        }
+        else if (m_hintStage == HINT_STAGE_SELF_INJURY && !m_selfInjuryDrawLogged)
+        {
+            // Same reason: the pool's window is six seconds long, so "picked but never drawn" is easy to miss.
+            m_selfInjuryDrawLogged = true;
+            SanityMod.LOGGER.info("[SELF-INJURY-C] hint pool line shown on screen: {}", m_hint.getString());
         }
 
         PoseStack poseStack = guiGraphics.pose();
@@ -747,6 +859,14 @@ public class GuiHandler
         float fadeFrom = fading && m_hintHiddenVoice ? 0f : fading ? .6f : .85f;
         float fade = Mth.lerp(o, fadeFrom, 1f);
         int opacity = Mth.clamp((int)(fade * 0xFF), fading && m_hintHiddenVoice ? 0x00 : 0x99, 0xEF) << 24;
+
+        // The announced self-injury act fades every inner line out across its five-second wind-down: the factor
+        // falls from 1 to 0 over that window and multiplies the alpha the curve above already produced, so the
+        // line keeps its own shape on the way out.
+        float selfInjuryFade = SelfInjuryPresentation.hintFadeFactor();
+
+        if (selfInjuryFade < 1f)
+            opacity = Mth.clamp((int)(((opacity >>> 24) & 0xFF) * selfInjuryFade), 0, 0xFF) << 24;
         if (DEBUG_CENTRE_MARKERS)
             opacity = 0xFF000000;
 
@@ -926,6 +1046,11 @@ public class GuiHandler
         // hidden): the cooldown and the save marker must keep tracking regardless of what is on screen.
         HiddenVoicePool.onClientTick(m_mc, dt);
 
+        // Same reasoning for the self-injury timeline: its counters have to keep draining while the draw below
+        // is gated (paused, creative, spectator), or a wound's tail would resume from a frozen value.
+        SelfInjuryPresentation.tick(dt);
+        BloodDecals.tick(dt);
+
         if (m_mc.player == null || m_mc.isPaused() || m_mc.player.isCreative() || m_mc.player.isSpectator())
             return;
 
@@ -1029,11 +1154,17 @@ public class GuiHandler
         ResourceLocation dim = m_mc.player.level().dimension().location();
         float madness = m_cap.getMadness();
 
+ // The self-injury pool owns the centre from the moment its window opens (the rule: its line
+        // displaces whatever else is on screen). The two warning windows below still run their own countdown
+        // while it speaks - only their early return is skipped - because a counter advanced only inside a branch
+        // that another window can skip is exactly the shape of a counter frozen in a skipped branch.
+        boolean selfInjuryWindow = SelfInjuryPresentation.hintWindowOpen();
+
         // Immunity expiry warning owns the centre while its 5 second window is open (see
         // tickExpiryWarning). It takes priority over the madness tiers: when the immunity runs out while the
         // mania grace period is already over, damage starts immediately, so "the shield is going away" is
         // the useful line to show.
-        if (tickExpiryWarning(dim, madness))
+        if (tickExpiryWarning(dim, madness) && !selfInjuryWindow)
             return;
 
         // Pre-damage warning window: this mania talks in its own voice exactly once (see tickDeepWarning)
@@ -1048,14 +1179,37 @@ public class GuiHandler
                 m_deepText = null;
                 dropHint();
             }
-            return;
+
+            if (!selfInjuryWindow)
+                return;
         }
         // Quiet stretch of a warning window: the previous line retires and nothing replaces it yet
         if (m_maniaHintQuiet > 0f)
         {
+ // The self-injury pool is the one voice allowed through that stretch: the window starts
+            // one tick after the wound and must not wait for a previous line to finish retiring.
+            if (tickSelfInjuryHint(dt))
+                return;
+
             dropHint();
             return;
         }
+
+        // The self-injury act, after the wound: for fifteen seconds no other pool may speak, and the
+        // self-injury pool speaks for the first six of them (see SelfInjuryPresentation#hintWindowOpen).
+        if (SelfInjuryPresentation.suppressesOtherPools())
+        {
+            if (tickSelfInjuryHint(dt))
+                return;
+
+            dropHint();
+            return;
+        }
+
+        // While an act is announced the centre deals nothing new: the line already on screen is fading out over
+        // the wind-down (see drawHintLine), and a fresh sentence appearing under it would be the opposite of it.
+        if (SelfInjuryPresentation.holdsTheCentre())
+            return;
 
         // While the immediate "/sanity hint show" line is on screen the regular hint yields,
         // so the centre never shows two monologues at once
@@ -1171,6 +1325,59 @@ public class GuiHandler
 
             m_hintTimer = MathHelper.clamp(m_hintTimer - dt, 0, Float.MAX_VALUE);
         }
+    }
+
+    /**
+     * The self-injury pool's branch of {@link #tickHint}: one line per act, held for the six seconds
+     * {@code SelfInjuryPresentation} keeps its window open.
+     *
+     * <p>It goes through the regular path on purpose - same centre position, same 2x scale, same fade curve,
+     * same shake - so "the colour, the shake and the fade are the mild tier's" follows from the code that runs,
+     * instead of from a second set of numbers that could drift away from it. The window is counted down by the
+     * presentation class, which ticks before every early exit of the caller (a counter advanced only in a skippable branch freezes there),
+     * so this method never owns a counter that a skipped branch could freeze.
+     *
+     * @return whether a line is on screen, in which case the caller must stop
+     */
+    private boolean tickSelfInjuryHint(float dt)
+    {
+        if (!SelfInjuryPresentation.hintWindowOpen())
+            return false;
+
+        // One pick per window. The window generation is what marks "a new act", never the shared slot: see
+        // m_selfInjuryLine and the pit this fix records for the measurement that made this necessary.
+        int generation = SelfInjuryPresentation.hintWindowGeneration();
+
+        if (m_selfInjuryLine == null || generation != m_selfInjuryWindowGeneration)
+        {
+            MentalHintManager.Pick picked = MentalHintManager.pickHintForDraw(HINT_STAGE_SELF_INJURY);
+
+            if (picked == null)
+                return false;
+
+            m_selfInjuryLine = picked.text();
+            m_selfInjuryWindowGeneration = generation;
+            SelfInjuryPresentation.noteHintPicked();
+            m_selfInjuryDrawLogged = false;
+            m_selfInjuryShowTicks = SELF_INJURY_HINT_SHOW_TICKS;
+
+            // One line per act: the only way a session can tell "never picked" from "picked and drawn", which is
+            // how the two earlier centre-screen display bugs were told apart.
+            SanityMod.LOGGER.info("[SELF-INJURY-C] hint pool line picked: {}", m_selfInjuryLine.getString());
+        }
+
+ // Take the centre back every frame - that is the "displace whatever else is on screen" - and
+        // drive the fade from this pool's own counter, since the branches above have just re-armed the shared one.
+        m_hint = m_selfInjuryLine;
+        m_hintHiddenVoice = false;
+        m_hintColor = 0xFFFFFF;
+        m_hintStage = HINT_STAGE_SELF_INJURY;
+        m_hintShakeAmplitude = HINT_SHAKE;
+        m_maxShowingHintTimer = SELF_INJURY_HINT_SHOW_TICKS;
+        m_showingHintTimer = m_selfInjuryShowTicks;
+        m_selfInjuryShowTicks = Math.max(0f, m_selfInjuryShowTicks - dt);
+
+        return true;
     }
 
     /** Whether the player currently holds the mania-immunity effect, which blocks the mania true damage only. */
@@ -1467,7 +1674,7 @@ public class GuiHandler
             return;
 
         if (m_sanityGain >= .002f && flash)
-            m_btGainedAlpha = Mth.lerp(MathHelper.clampNorm(Mth.inverseLerp(m_sanityGain, .002f, .02f)), .4f, .75f);
+            m_btGainedAlpha = Mth.lerp(MathHelper.clampNorm(Mth.inverseLerp(m_sanityGain, .002f, .02f)), .4f, BT_FLASH_MAX);
 
         if (passive)
             m_btDelay = Mth.clamp(m_btDelay + (m_cap instanceof IPassiveSanity ps && ps.getPassiveIncrease() < 0f ? dt : -dt), 0, BT_DELAY);

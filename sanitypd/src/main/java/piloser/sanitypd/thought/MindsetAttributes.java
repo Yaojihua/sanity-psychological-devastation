@@ -126,7 +126,7 @@ public final class MindsetAttributes
         boolean high = composure && aboveEighty;
         set(player, Attributes.ATTACK_DAMAGE, ATTACK_ID, COMPOSURE_ATTACK, 0.15, AttributeModifier.Operation.MULTIPLY_TOTAL, high);
         set(player, Attributes.MOVEMENT_SPEED, SPEED_ID, COMPOSURE_SPEED, 0.20, AttributeModifier.Operation.MULTIPLY_TOTAL, high);
-        // Flat +1 armour, not a percentage: the owner's wording is "+1 armour".
+ // Flat +1 armour, not a percentage: the wording is "+1 armour".
         set(player, Attributes.ARMOR, ARMOR_ID, COMPOSURE_ARMOR, 1.0, AttributeModifier.Operation.ADDITION,
                 composure && garlandWorn);
         // A second attack modifier, from a different source: vanilla sums every MULTIPLY_TOTAL on one attribute
@@ -182,7 +182,7 @@ public final class MindsetAttributes
 
         // Irritability amplifies the mania effect's own +50%, so the caller resolves it to 0 whenever mania
         // is not on the player. Both multipliers are MULTIPLY_TOTAL and vanilla sums that operation before
-        // multiplying the base - which is exactly the owner's "add it to what mania already gives" (50% + 20%
+ // multiplying the base - which is exactly the "add it to what mania already gives" (50% + 20%
         // = 70%, not 50% x 1.2).
         set(player, Attributes.ATTACK_DAMAGE, IRRITABILITY_ID, IRRITABILITY_ATTACK, irritability,
                 AttributeModifier.Operation.MULTIPLY_TOTAL, irritability != 0f);

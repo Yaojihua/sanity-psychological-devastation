@@ -47,6 +47,7 @@ public final class SoundProbe
     private static final Map<String, Integer> PLAYS = new ConcurrentHashMap<>();
     private static String s_hud = "(no sanitypd sound yet)";
     private static int s_tick;
+    private static boolean s_reportedError;
 
     private SoundProbe() {}
 
@@ -93,29 +94,60 @@ public final class SoundProbe
             boolean suppressed = event.getSound() == null;
 
             Minecraft mc = Minecraft.getInstance();
-            double distance = mc.player == null ? -1.0d
+            boolean relative = original.isRelative();
+            // A relative sound is anchored to the listener, so its coordinates mean nothing: reporting a
+            // distance for it produced a huge, alarming number for the tape's hiss bed even though the bed
+            // was exactly where it should be. Distance is only meaningful for world-positioned sounds.
+            double distance = mc.player == null || relative ? -1.0d
                     : Math.sqrt(mc.player.distanceToSqr(original.getX(), original.getY(), original.getZ()));
 
             String name = ours ? location.getPath() : "VANILLA generic.explode";
             int count = PLAYS.merge(name, 1, Integer::sum);
 
+            // The engine offers the sound to Forge *before* it resolves the instance, and
+            // AbstractSoundInstance#getVolume()/#getPitch() multiply by that resolved Sound - so reading them
+            // here throws a NullPointerException for every freshly built instance. That exception used to be
+            // swallowed, which is why this line had never been written in any session on record; the volume
+            // and the pitch are simply not known yet at this point.
+            boolean resolved = original.getSound() != null;
+
             String line = (suppressed ? "SUPPRESSED " : "play ") + "#" + count + " " + name
-                    + " dist=" + ProbeLog.fmt(distance)
-                    + " vol=" + ProbeLog.fmt(original.getVolume())
-                    + " pitch=" + ProbeLog.fmt(original.getPitch())
-                    + " attenuation=" + ProbeLog.safe(() -> String.valueOf(original.getAttenuation()));
+                    + " dist=" + (relative ? "n/a(listener)" : ProbeLog.fmt(distance))
+                    + " vol=" + (resolved ? ProbeLog.fmt(original.getVolume()) : "n/a(unresolved)")
+                    + " pitch=" + (resolved ? ProbeLog.fmt(original.getPitch()) : "n/a(unresolved)")
+                    + " attenuation=" + ProbeLog.safe(() -> String.valueOf(original.getAttenuation()))
+                    + " relative=" + relative;
 
             if (ours)
                 line += " | " + resolve(location);
 
             ProbeLog.log("SOUND-C", line);
 
-            s_hud = (suppressed ? "SUPPRESSED " : "") + name + " x" + count + " d=" + ProbeLog.fmt(distance)
+            s_hud = (suppressed ? "SUPPRESSED " : "") + name + " x" + count
+                    + " d=" + (relative ? "n/a" : ProbeLog.fmt(distance))
+                    + (resolved ? "" : " (unresolved)")
                     + (ours && !resolve(location).contains("PASS") ? "  !! " + resolve(location) : "");
         }
-        catch (Throwable ignored)
+        catch (Throwable t)
         {
-            // The probe must never affect gameplay.
+            // The probe must never affect gameplay - but a swallowed failure is invisible, and this one hid
+            // the per-play line entirely: the counts kept rising while not one "play #n" line was ever
+            // written, in every session on record. Report it once per session so a silent group cannot look
+            // like a group that simply had nothing to say.
+            if (!s_reportedError)
+            {
+                s_reportedError = true;
+                // The exception's OWN first frames, not the stack at this catch block: the point is to see
+                // which call inside the line threw it. The first session that reported this named a vanilla
+                // Sound getter, and the frame is what points at the exact line.
+                StringBuilder where = new StringBuilder();
+                StackTraceElement[] frames = t.getStackTrace();
+
+                for (int i = 0; i < Math.min(6, frames.length); i++)
+                    where.append(i == 0 ? " @ " : " <- ").append(frames[i]);
+
+                ProbeLog.log("SOUND-C", "the per-play line failed: " + t + where);
+            }
         }
     }
 

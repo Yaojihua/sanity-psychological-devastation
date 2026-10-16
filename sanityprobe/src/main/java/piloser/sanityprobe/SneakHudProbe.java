@@ -70,7 +70,7 @@ public final class SneakHudProbe
      * {@code Capability} token itself, and the method that turns a token plus an entity into an
      * {@code ISanity} lives on the entity. The lookup therefore threw
      * {@code NoSuchMethodException: net.minecraftforge.common.capabilities.Capability.get()} on every
-     * sneak, which the catch below dutifully logged - 121 lines of it in one of the owner's sessions,
+ * sneak, which the catch below dutifully logged - 121 lines of it in one of the sessions,
      * enough to bury latest.log. Every other probe in this project already passes the token to
      * {@code getCapability}; this one now does the same.
      */

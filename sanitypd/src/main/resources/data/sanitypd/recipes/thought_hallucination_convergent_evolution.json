@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ghg",
+    "mcs",
+    "gfg"
+  ],
+  "key": {
+    "g": {
+      "item": "minecraft:glass"
+    },
+    "h": {
+      "item": "sanitypd:thought_hallucination_horse"
+    },
+    "m": {
+      "item": "sanitypd:thought_hallucination_human"
+    },
+    "c": {
+      "item": "sanitypd:inner_core"
+    },
+    "s": {
+      "item": "sanitypd:thought_hallucination_sheep"
+    },
+    "f": {
+      "item": "sanitypd:thought_hallucination_fish"
+    }
+  },
+  "result": {
+    "item": "sanitypd:thought_hallucination_convergent_evolution",
+    "count": 1
+  }
+}
